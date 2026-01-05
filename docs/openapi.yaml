@@ -1,0 +1,155 @@
+openapi: 3.0.3
+info:
+  title: OC-P4 DataShare API
+  version: 1.0.0
+
+servers:
+  - url: /api
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+
+    TokenResponse:
+      type: object
+      properties:
+        accessToken: { type: string }
+
+    PublicFileMetadata:
+      type: object
+      properties:
+        token: { type: string }
+        originalName: { type: string }
+        mimeType: { type: string }
+        sizeBytes: { type: integer, format: int64 }
+        uploadedAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        isPasswordProtected: { type: boolean }
+
+paths:
+  /auth/register:
+    post:
+      summary: Création de compte (US03)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegisterRequest" }
+      responses:
+        "201": { description: Created }
+
+  /auth/login:
+    post:
+      summary: Connexion (US04)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenResponse" }
+
+  /me/files:
+    get:
+      summary: Historique des fichiers (US05)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string, enum: [all, active, expired], default: all }
+      responses:
+        "200": { description: OK }
+
+  /files:
+    post:
+      summary: Upload authentifié (US01)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                expiresInDays: { type: integer, minimum: 1, maximum: 7, default: 7 }
+                password: { type: string, minLength: 6, nullable: true }
+                tags:
+                  type: array
+                  items: { type: string, maxLength: 30 }
+      responses:
+        "201": { description: Created }
+
+  /files/{id}:
+    delete:
+      summary: Suppression d’un fichier (US06)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204": { description: Deleted }
+
+  /public/files/{token}:
+    get:
+      summary: Métadonnées visibles via lien (US02)
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicFileMetadata" }
+        "404": { description: Token invalide }
+        "410": { description: Fichier expiré }
+
+  /public/files/{token}/download:
+    post:
+      summary: Télécharger via lien (US02) + password si protégé (US09)
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password: { type: string, minLength: 6 }
+      responses:
+        "200": { description: File stream }
+        "401": { description: Mot de passe requis/invalide }
+        "404": { description: Token invalide }
+        "410": { description: Fichier expiré }
