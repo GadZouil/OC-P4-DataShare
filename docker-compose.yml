@@ -1,0 +1,17 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: oc-p4-datashare-postgres
+    environment:
+      POSTGRES_DB: datashare
+      POSTGRES_USER: datashare
+      POSTGRES_PASSWORD: datashare
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
+      POSTGRES_HOST_AUTH_METHOD: "scram-sha-256"
+    ports:
+      - "5433:5432"
+    volumes:
+      - datashare_pg:/var/lib/postgresql/data
+
+volumes:
+  datashare_pg:
