@@ -1,0 +1,76 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36" version="29.2.9">
+  <diagram name="Page-1" id="5fcU78oRUA816yIlNKTO">
+    <mxGraphModel dx="2066" dy="1137" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="5gvJqfPx2un34J_xe5X4-1" parent="1" style="whiteSpace=wrap;strokeWidth=2;" value="Utilisateur" vertex="1">
+          <mxGeometry height="54" width="135" x="20" y="105" as="geometry" />
+        </mxCell>
+        <mxCell id="5gvJqfPx2un34J_xe5X4-2" parent="1" style="whiteSpace=wrap;strokeWidth=2;" value="Front SPA Vue" vertex="1">
+          <mxGeometry height="54" width="157" x="381" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="5gvJqfPx2un34J_xe5X4-3" parent="1" style="whiteSpace=wrap;strokeWidth=2;" value="API REST ASP.NET Core" vertex="1">
+          <mxGeometry height="54" width="221" x="762" y="136" as="geometry" />
+        </mxCell>
+        <mxCell id="5gvJqfPx2un34J_xe5X4-4" parent="1" style="shape=cylinder3;boundedLbl=1;backgroundOutline=1;size=10;strokeWidth=2;whiteSpace=wrap;" value="PostgreSQL" vertex="1">
+          <mxGeometry height="71" width="94" x="1044" y="51" as="geometry" />
+        </mxCell>
+        <mxCell id="5gvJqfPx2un34J_xe5X4-5" parent="1" style="shape=cylinder3;boundedLbl=1;backgroundOutline=1;size=10;strokeWidth=2;whiteSpace=wrap;" value="Stockage local" vertex="1">
+          <mxGeometry height="75" width="118" x="1032" y="172" as="geometry" />
+        </mxCell>
+        <mxCell id="5gvJqfPx2un34J_xe5X4-6" parent="1" style="whiteSpace=wrap;strokeWidth=2;" value="Job quotidien purge expirations" vertex="1">
+          <mxGeometry height="78" width="260" x="330" y="124" as="geometry" />
+        </mxCell>
+        <mxCell id="5gvJqfPx2un34J_xe5X4-7" edge="1" parent="1" source="5gvJqfPx2un34J_xe5X4-1" style="curved=1;startArrow=none;endArrow=block;exitX=0.79;exitY=0;entryX=0;entryY=0.35;rounded=0;" target="5gvJqfPx2un34J_xe5X4-2" value="HTTPS">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="242" y="25" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="5gvJqfPx2un34J_xe5X4-8" edge="1" parent="1" source="5gvJqfPx2un34J_xe5X4-2" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.5;entryX=0.29;entryY=0;rounded=0;" target="5gvJqfPx2un34J_xe5X4-3" value="HTTPS JSON JWT">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="676" y="47" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="5gvJqfPx2un34J_xe5X4-9" edge="1" parent="1" source="5gvJqfPx2un34J_xe5X4-3" style="curved=1;startArrow=none;endArrow=block;exitX=0.71;exitY=0;entryX=0;entryY=0.5;rounded=0;" target="5gvJqfPx2un34J_xe5X4-4" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1007" y="86" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="5gvJqfPx2un34J_xe5X4-10" edge="1" parent="1" source="5gvJqfPx2un34J_xe5X4-3" style="curved=1;startArrow=none;endArrow=block;exitX=0.85;exitY=1;entryX=0;entryY=0.5;rounded=0;" target="5gvJqfPx2un34J_xe5X4-5" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1007" y="210" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="5gvJqfPx2un34J_xe5X4-11" edge="1" parent="1" source="5gvJqfPx2un34J_xe5X4-1" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.5;entryX=0.06;entryY=1;rounded=0;" target="5gvJqfPx2un34J_xe5X4-2" value="Lien public token">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="242" y="132" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="5gvJqfPx2un34J_xe5X4-12" edge="1" parent="1" source="5gvJqfPx2un34J_xe5X4-3" style="curved=1;startArrow=none;endArrow=block;exitX=0.22;exitY=1;entryX=0.77;entryY=1;rounded=0;" target="5gvJqfPx2un34J_xe5X4-1" value="Stream fichier">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="676" y="249" />
+              <mxPoint x="242" y="249" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="5gvJqfPx2un34J_xe5X4-13" edge="1" parent="1" source="5gvJqfPx2un34J_xe5X4-6" style="curved=1;startArrow=none;endArrow=block;exitX=1;exitY=0.5;entryX=0;entryY=0.5;rounded=0;" target="5gvJqfPx2un34J_xe5X4-3" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
