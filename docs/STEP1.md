@@ -1,8 +1,8 @@
 # Étape 1 — Architecture, MCD, contrat d’interface
 
 ## Livrables
-- Diagramme d’architecture : `docs/diagrams/architecture.png` (source : `docs/diagrams/architecture.drawio`)
-- MCD / Modèle de données : `docs/diagrams/mcd.png` (source : `docs/diagrams/mcd.drawio`)
+- Diagramme d’architecture : `docs/diagrams/architecture.drawio.png` (source : `docs/diagrams/architecture.drawio`)
+- MCD / Modèle de données : `docs/diagrams/mcd.drawio.png` (source : `docs/diagrams/mcd.drawio`)
 - Contrat d’interface (OpenAPI) : `docs/openapi.yaml`
 
 ## Stack retenue
