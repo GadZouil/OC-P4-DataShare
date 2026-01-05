@@ -27,3 +27,6 @@ pnpm-debug.log*
 
 # Draw.io autosaves
 *.drawio.bkp
+
+# Visual Studio
+.vs/
