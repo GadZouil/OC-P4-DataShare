@@ -3,9 +3,7 @@
     <div class="ds-card">
       <h1 class="ds-title">Créer un compte</h1>
 
-      <div v-if="error" class="ds-callout" style="white-space: pre-line;">
-        {{ error }}
-      </div>
+      <div v-if="error" class="ds-callout ds-callout--error">{{ error }}</div>
 
       <form class="ds-form" @submit.prevent="onSubmit">
         <div class="ds-field">
@@ -14,8 +12,6 @@
             class="ds-input"
             v-model.trim="email"
             placeholder="Saisissez votre email…"
-            type="email"
-            inputmode="email"
             autocomplete="email"
             required
           />
@@ -31,6 +27,9 @@
             autocomplete="new-password"
             required
           />
+          <div class="ds-hint">
+            8 caractères min, 1 majuscule, 1 chiffre, 1 caractère spécial.
+          </div>
         </div>
 
         <div class="ds-field">
@@ -48,7 +47,7 @@
         <RouterLink class="ds-link" to="/login">J'ai déjà un compte</RouterLink>
 
         <button class="ds-btn" :disabled="loading">
-          {{ loading ? "Création..." : "Créer mon compte" }}
+          Créer mon compte
         </button>
       </form>
     </div>
@@ -61,6 +60,8 @@ import { useRouter } from "vue-router";
 import PublicLayout from "../layouts/PublicLayout.vue";
 import { register } from "../api/auth";
 
+type IdentityError = { code?: string; description?: string };
+
 const router = useRouter();
 
 const email = ref("");
@@ -69,42 +70,70 @@ const pwd2 = ref("");
 const error = ref<string | null>(null);
 const loading = ref(false);
 
-function extractApiError(e: any): string {
-  const data = e?.response?.data;
+function mapIdentityCode(code?: string) {
+  switch (code) {
+    // Email / user
+    case "DuplicateUserName":
+    case "DuplicateEmail":
+      return "Cet email est déjà utilisé.";
+    case "InvalidEmail":
+      return "Email invalide.";
+    case "InvalidUserName":
+      return "Nom d’utilisateur invalide.";
 
-  // Identity renvoie souvent: [{ code, description }, ...]
-  if (Array.isArray(data) && data.length && data[0]?.description) {
-    return data.map((x: any) => x.description).join("\n");
+    // Password rules (ASP.NET Identity)
+    case "PasswordTooShort":
+      return "Mot de passe trop court (8 caractères minimum).";
+    case "PasswordRequiresNonAlphanumeric":
+      return "Le mot de passe doit contenir au moins un caractère spécial (ex: !, ?, #, @…).";
+    case "PasswordRequiresDigit":
+      return "Le mot de passe doit contenir au moins un chiffre.";
+    case "PasswordRequiresUpper":
+      return "Le mot de passe doit contenir au moins une majuscule.";
+    case "PasswordRequiresLower":
+      return "Le mot de passe doit contenir au moins une minuscule.";
+
+    // Other common Identity errors
+    case "PasswordMismatch":
+      return "Mot de passe incorrect.";
+    case "ConcurrencyFailure":
+      return "Conflit de mise à jour. Réessaie.";
+    default:
+      return null;
   }
-
-  if (data?.message && typeof data.message === "string") return data.message;
-  if (typeof data === "string") return data;
-  if (e?.message) return e.message;
-
-  return "Erreur.";
 }
 
-function validatePasswordFront(p: string): string[] {
-  const errors: string[] = [];
+function normalizeRegisterError(e: any): string {
+  const data = e?.response?.data;
 
-  // Identity par défaut = 6 minimum
-  if (p.length < 6) errors.push("Mot de passe : minimum 6 caractères.");
-  if (!/[A-Z]/.test(p)) errors.push("Mot de passe : au moins 1 majuscule.");
-  if (!/[0-9]/.test(p)) errors.push("Mot de passe : au moins 1 chiffre.");
-  if (!/[^a-zA-Z0-9]/.test(p)) errors.push("Mot de passe : au moins 1 caractère spécial.");
+  // format : [{code, description}, ...]
+  if (Array.isArray(data)) {
+    const messages = data
+      .map((x: IdentityError) => mapIdentityCode(x.code) ?? x.description ?? null)
+      .filter(Boolean) as string[];
 
-  return errors;
+    if (messages.length) return messages.join(" ");
+    return "Erreur lors de la création du compte.";
+  }
+
+  // format : { message: "..." } ou string
+  if (typeof data === "string") return data;
+  if (data?.message) return String(data.message);
+
+  // axios fallback
+  if (e?.message) return String(e.message);
+
+  return "Erreur lors de la création du compte.";
 }
 
 async function onSubmit() {
   error.value = null;
 
-  const pwdErrors = validatePasswordFront(pwd.value);
-  if (pwdErrors.length) {
-    error.value = pwdErrors.join("\n");
+  // validation front minimale (le back est la source de vérité)
+  if (!email.value.includes("@")) {
+    error.value = "Email invalide.";
     return;
   }
-
   if (pwd.value !== pwd2.value) {
     error.value = "Les mots de passe ne correspondent pas.";
     return;
@@ -115,7 +144,7 @@ async function onSubmit() {
     await register(email.value, pwd.value);
     router.push("/login");
   } catch (e: any) {
-    error.value = extractApiError(e);
+    error.value = normalizeRegisterError(e);
   } finally {
     loading.value = false;
   }

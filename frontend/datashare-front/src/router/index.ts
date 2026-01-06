@@ -5,7 +5,16 @@ import RegisterView from "../views/RegisterView.vue";
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    { path: "/", redirect: "/login" }, // temporaire
+    {
+      path: "/",
+      name: "upload",
+      component: () => import("../views/UploadView.vue"),
+    },
+    {
+      path: "/download/:token",
+      name: "download",
+      component: () => import("../views/DownloadView.vue"),
+    },
     { path: "/login", component: LoginView },
     { path: "/register", component: RegisterView },
   ],

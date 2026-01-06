@@ -1,11 +1,30 @@
-const API_URL = import.meta.env.VITE_API_URL;
+import type { AxiosError } from "axios";
+import api from "../services/api";
 
-type Json = Record<string, any>;
+type IdentityError = { code?: string; description?: string };
 
-async function readJson(res: Response): Promise<Json> {
-  const ct = res.headers.get("content-type") ?? "";
-  if (!ct.includes("application/json")) return {};
-  return await res.json();
+function errorMessage(err: unknown, fallback: string) {
+  const e = err as AxiosError<any>;
+  const data = e?.response?.data;
+
+  // Back: string
+  if (typeof data === "string") return data;
+
+  // Back: { message: "..." }
+  if (data?.message) return String(data.message);
+
+  // Back: Identity errors [{ code, description }, ...]
+  if (Array.isArray(data)) {
+    const msgs = (data as IdentityError[])
+      .map((x) => x.description)
+      .filter(Boolean);
+    if (msgs.length) return msgs.join(" ");
+  }
+
+  // Axios / réseau
+  if (e?.message) return e.message;
+
+  return fallback;
 }
 
 export function setJwt(token: string) {
@@ -17,30 +36,26 @@ export function getJwt(): string | null {
 }
 
 export async function register(email: string, password: string) {
-  const res = await fetch(`${API_URL}/auth/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
-
-  const data = await readJson(res);
-  if (!res.ok) throw new Error(data.message ?? "Inscription impossible.");
-  return data;
+  try {
+    const res = await api.post("/auth/register", { email, password });
+    return res.data;
+  } catch (err) {
+    throw new Error(errorMessage(err, "Inscription impossible."));
+  }
 }
 
 export async function login(email: string, password: string) {
-  const res = await fetch(`${API_URL}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
+  try {
+    const res = await api.post("/auth/login", { email, password });
 
-  const data = await readJson(res);
-  if (!res.ok) throw new Error(data.message ?? "Identifiants invalides.");
+    const data = res.data ?? {};
+    const token = data.token ?? data.accessToken ?? data.jwt;
 
-  const token = data.token ?? data.accessToken ?? data.jwt;
-  if (!token) throw new Error("Réponse login: token introuvable.");
-  setJwt(token);
+    if (!token) throw new Error("Réponse login: token introuvable.");
 
-  return data;
+    setJwt(token);
+    return data;
+  } catch (err) {
+    throw new Error(errorMessage(err, "Identifiants invalides."));
+  }
 }
