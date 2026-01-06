@@ -30,3 +30,6 @@ pnpm-debug.log*
 
 # Visual Studio
 .vs/
+
+# Vite cache
+frontend/**/.vite/
