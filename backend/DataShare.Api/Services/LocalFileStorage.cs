@@ -34,4 +34,12 @@ public class LocalFileStorage : IFileStorage
 
         return Task.CompletedTask;
     }
+
+    public Task<(Stream Stream, string ContentType)> OpenReadAsync(string storedFileName, string? contentType, CancellationToken ct)
+    {
+        var fullPath = Path.Combine(_root, storedFileName);
+        var stream = File.OpenRead(fullPath);
+        return Task.FromResult((Stream: (Stream)stream, ContentType: contentType ?? "application/octet-stream"));
+    }
+
 }
