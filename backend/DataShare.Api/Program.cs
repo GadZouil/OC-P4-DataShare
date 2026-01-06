@@ -6,6 +6,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using DataShare.Api.Services;
+using Microsoft.AspNetCore.Http.Features;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -47,9 +50,15 @@ var conn = builder.Configuration.GetConnectionString("Default");
 builder.Services.AddDbContext<DataShareDbContext>(o => o.UseNpgsql(conn));
 
 builder.Services
+    .AddSingleton<IFileStorage, LocalFileStorage>()
     .AddIdentityCore<AppUser>()
     .AddRoles<IdentityRole<Guid>>()
     .AddEntityFrameworkStores<DataShareDbContext>();
+
+builder.Services.Configure<FormOptions>(o =>
+{
+    o.MultipartBodyLengthLimit = 1_073_741_824; // 1 Go
+});
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(o =>

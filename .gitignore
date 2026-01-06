@@ -33,3 +33,7 @@ pnpm-debug.log*
 
 # Vite cache
 frontend/**/.vite/
+
+**/.vite/
+backend/DataShare.Api/storage/
+
