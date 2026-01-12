@@ -3,8 +3,8 @@
     <header class="ds-header">
       <div class="ds-brand">DataShare</div>
 
-      <RouterLink class="ds-header-action" :to="headerActionTo">
-        {{ headerActionLabel }}
+      <RouterLink class="ds-header-action" :to="actionTo">
+        {{ actionLabel }}
       </RouterLink>
     </header>
 
@@ -17,8 +17,19 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
-  headerActionLabel: string;
-  headerActionTo: string;
-}>();
+  import { computed } from "vue";
+  import { isAuthenticated } from "../api/auth";
+
+  const props = defineProps<{
+    headerActionLabel: string;
+    headerActionTo: string;
+  }>();
+
+  const actionLabel = computed(() =>
+    isAuthenticated.value ? "Mon espace" : (props.headerActionLabel ?? "Se connecter")
+  );
+
+  const actionTo = computed(() =>
+    isAuthenticated.value ? "/" : (props.headerActionTo ?? "/login")
+  );
 </script>

@@ -1,10 +1,9 @@
-/* ===========================
-   Design tokens
-=========================== */
 :root{
   --bg: linear-gradient(172.84deg, #FFB88C 2.29%, #DE6262 97.71%);
+
   --card-bg: #FFFFFF;
   --shadow: 0px 0px 12px rgba(0,0,0,0.25);
+
   --radius-card: 16px;
   --radius: 8px;
 
@@ -20,28 +19,17 @@
   --header-btn-text: #F3EEEA;
 }
 
-/* ===========================
-   Base / reset
-=========================== */
 *{ box-sizing:border-box; }
-
-html, body, #app{
-  height:100%;
-  margin:0;
-}
-
+html, body, #app { height:100%; }
 body{
+  margin:0;
+  color:var(--text);
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  color: var(--text);
 }
 
-.ds-hidden{ display:none; }
-
-/* ===========================
-   Layout
-=========================== */
+/* Page layout */
 .ds-page{
-  min-height:100%;
+  min-height: 100vh;
   background: var(--bg);
   display:flex;
   flex-direction:column;
@@ -84,16 +72,7 @@ body{
   padding: 24px;
 }
 
-.ds-footer{
-  padding: 24px;
-  color: #FFFFFF;
-  font-family: Inter, sans-serif;
-  font-size: 12px;
-}
-
-/* ===========================
-   Card / form elements
-=========================== */
+/* Card */
 .ds-card{
   width: min(592px, 100%);
   background: var(--card-bg);
@@ -105,6 +84,11 @@ body{
   gap: 24px;
 }
 
+@media (max-width: 430px){
+  .ds-card{ width: min(345px, 100%); }
+  .ds-brand{ font-size: 32px; line-height: 42px; }
+}
+
 .ds-title{
   font-family: "DM Sans", sans-serif;
   font-weight: 700;
@@ -114,6 +98,7 @@ body{
   margin:0;
 }
 
+/* Form */
 .ds-form{
   display:flex;
   flex-direction:column;
@@ -135,17 +120,31 @@ body{
 
 .ds-input,
 .ds-select{
+  width: 100%;
   height: 40px;
-  padding: 12px 16px;
+  padding: 8px 12px 8px 16px; /* Figma */
   border: 1px solid #D9D9D9;
   border-radius: var(--radius);
   font-family: "DM Sans", sans-serif;
   font-size: 16px;
+  line-height: 24px;
   outline:none;
   background: #fff;
 }
 
 .ds-input::placeholder{ color: var(--muted); }
+
+/* Select chevron (look Figma) */
+.ds-select{
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  padding-right: 40px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M8 10L12 14L16 10' stroke='%23000000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
 
 .ds-link{
   display:block;
@@ -164,57 +163,61 @@ body{
   border: 1px solid var(--btn-border);
   background: var(--btn-bg);
   color: var(--btn-text);
-  font-family: Inter, sans-serif;
+  font-family: "DM Sans", sans-serif;
   font-size: 16px;
+  line-height: 16px;
   cursor:pointer;
 }
 
 .ds-btn:disabled{ opacity: .6; cursor:not-allowed; }
 
-.ds-btn--secondary{
-  background: rgba(255,255,255,0.6);
-}
-
+/* Callouts (Figma-like) */
 .ds-callout{
   border-radius: 8px;
   padding: 10px 12px;
   font-family: Inter, sans-serif;
   font-size: 14px;
+  line-height: 24px;
   background: rgba(255,255,255,0.6);
+  border: 1px solid rgba(0,0,0,0.06);
 }
 
 .ds-callout--error{
-  border: 1px solid rgba(255,0,0,0.25);
+  background: rgba(255,0,0,0.03);
+  border: 1px solid rgba(255,0,0,0.20);
 }
 
+/* Footer */
+.ds-footer{
+  padding: 24px;
+  color: #FFFFFF;
+  font-family: Inter, sans-serif;
+  font-size: 12px;
+}
+
+/* Helpers */
+.ds-hidden { display:none; }
 .ds-hint{
   font-size: 12px;
+  line-height: 24px;
   opacity: 0.75;
-  margin-top: 6px;
+  margin-top: 0;
 }
 
-/* ===========================
-   Responsive adjustments
-=========================== */
-@media (max-width: 430px){
-  .ds-card{ width: min(345px, 100%); }
-  .ds-brand{ font-size: 32px; line-height: 42px; }
-}
-
-/* ===========================
-   Upload / download views
-=========================== */
+/* Upload home hero */
 .ds-upload-hero{
+  width: 100%;
   display:flex;
   flex-direction:column;
   align-items:center;
   justify-content:center;
   gap:24px;
-  min-height: calc(100vh - 120px);
   text-align:center;
+  min-height: calc(100vh - 120px);
 }
 
 .ds-upload-question{
+  font-family: Inter, sans-serif;
   font-size: 32px;
   line-height: 1.2;
 }
@@ -245,6 +248,7 @@ body{
   justify-content:center;
 }
 
+/* Bottom sheet container */
 .ds-upload-sheet{
   width: 100%;
   display:flex;
@@ -252,7 +256,7 @@ body{
 }
 
 .ds-upload-card{
-  width: 544px;
+  width: 544px;           /* Figma */
   max-width: 92vw;
 }
 
@@ -267,6 +271,7 @@ body{
   }
 }
 
+/* File row */
 .ds-file-row{
   display:flex;
   align-items:center;
@@ -285,29 +290,41 @@ body{
 .ds-file-meta{ min-width:0; }
 
 .ds-file-name{
+  font-family: Inter, sans-serif;
   font-size:16px;
+  line-height: 24px;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
   max-width: 340px;
 }
 
-.ds-file-size{
+.ds-file-size,
+.ds-file-sub{
+  font-family: Inter, sans-serif;
   font-size: 12px;
+  line-height: 24px;
   opacity: 0.8;
 }
 
 .ds-file-change{
-  border: 1px solid rgba(0,0,0,0.12);
-  background: transparent;
-  border-radius: 8px;
+  height: 32px;
   padding: 8px 12px;
+  border: 1px solid #D9D9D9;
+  background: #fff;
+  border-radius: 8px;
   cursor:pointer;
+  font-family: Inter, sans-serif;
+  font-size: 14px;
+  line-height: 16px;
 }
 
+/* Success */
 .ds-success-text{
   margin: 12px 0;
+  font-family: Inter, sans-serif;
   font-size: 16px;
+  line-height: 24px;
 }
 
 .ds-linkbox{
