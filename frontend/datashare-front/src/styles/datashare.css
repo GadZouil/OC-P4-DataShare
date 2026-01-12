@@ -1,0 +1,341 @@
+:root{
+  --bg: linear-gradient(172.84deg, #FFB88C 2.29%, #DE6262 97.71%);
+
+  --card-bg: #FFFFFF;
+  --shadow: 0px 0px 12px rgba(0,0,0,0.25);
+
+  --radius-card: 16px;
+  --radius: 8px;
+
+  --text: #000;
+  --muted: #B3B3B3;
+  --label: #1E1E1E;
+
+  --btn-bg: rgba(255,129,45,0.13);
+  --btn-border: rgba(205,94,20,0.5);
+  --btn-text: #BA681F;
+
+  --header-btn-bg: #2C2C2C;
+  --header-btn-text: #F3EEEA;
+}
+
+*{ box-sizing:border-box; }
+html, body, #app { height:100%; }
+body{
+  margin:0;
+  color:var(--text);
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+/* Page layout */
+.ds-page{
+  min-height: 100vh;
+  background: var(--bg);
+  display:flex;
+  flex-direction:column;
+}
+
+.ds-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding: 24px;
+}
+
+.ds-brand{
+  font-family: "DM Sans", sans-serif;
+  font-weight: 700;
+  font-size: 40px;
+  line-height: 52px;
+}
+
+.ds-header-action{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  background: var(--header-btn-bg);
+  color: var(--header-btn-text);
+  border: none;
+  font-family: Inter, sans-serif;
+  font-size: 14px;
+  cursor:pointer;
+  text-decoration:none;
+}
+
+.ds-content{
+  flex:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: 24px;
+}
+
+/* Card */
+.ds-card{
+  width: min(592px, 100%);
+  background: var(--card-bg);
+  box-shadow: var(--shadow);
+  border-radius: var(--radius-card);
+  padding: 24px;
+  display:flex;
+  flex-direction:column;
+  gap: 24px;
+}
+
+@media (max-width: 430px){
+  .ds-card{ width: min(345px, 100%); }
+  .ds-brand{ font-size: 32px; line-height: 42px; }
+}
+
+.ds-title{
+  font-family: "DM Sans", sans-serif;
+  font-weight: 700;
+  font-size: 28px;
+  line-height: 40px;
+  text-align:center;
+  margin:0;
+}
+
+/* Form */
+.ds-form{
+  display:flex;
+  flex-direction:column;
+  gap: 16px;
+}
+
+.ds-field{
+  display:flex;
+  flex-direction:column;
+  gap: 8px;
+}
+
+.ds-label{
+  font-family: Inter, sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+  color: var(--label);
+}
+
+.ds-input,
+.ds-select{
+  width: 100%;
+  height: 40px;
+  padding: 8px 12px 8px 16px; /* Figma */
+  border: 1px solid #D9D9D9;
+  border-radius: var(--radius);
+  font-family: "DM Sans", sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+  outline:none;
+  background: #fff;
+}
+
+.ds-input::placeholder{ color: var(--muted); }
+
+/* Select chevron (look Figma) */
+.ds-select{
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  padding-right: 40px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M8 10L12 14L16 10' stroke='%23000000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
+.ds-link{
+  display:block;
+  text-align:center;
+  color: var(--btn-text);
+  text-decoration:none;
+  font-family: Inter, sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.ds-btn{
+  height: 44px;
+  width: 100%;
+  border-radius: var(--radius);
+  border: 1px solid var(--btn-border);
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  font-family: "DM Sans", sans-serif;
+  font-size: 16px;
+  line-height: 16px;
+  cursor:pointer;
+}
+
+.ds-btn:disabled{ opacity: .6; cursor:not-allowed; }
+
+/* Callouts (Figma-like) */
+.ds-callout{
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: Inter, sans-serif;
+  font-size: 14px;
+  line-height: 24px;
+  background: rgba(255,255,255,0.6);
+  border: 1px solid rgba(0,0,0,0.06);
+}
+
+.ds-callout--error{
+  background: rgba(255,0,0,0.03);
+  border: 1px solid rgba(255,0,0,0.20);
+}
+
+/* Footer */
+.ds-footer{
+  padding: 24px;
+  color: #FFFFFF;
+  font-family: Inter, sans-serif;
+  font-size: 12px;
+}
+
+/* Helpers */
+.ds-hidden { display:none; }
+.ds-hint{
+  font-size: 12px;
+  line-height: 24px;
+  opacity: 0.75;
+  margin-top: 0;
+}
+
+/* Upload home hero */
+.ds-upload-hero{
+  width: 100%;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:24px;
+  text-align:center;
+  min-height: calc(100vh - 120px);
+}
+
+.ds-upload-question{
+  font-family: Inter, sans-serif;
+  font-size: 32px;
+  line-height: 1.2;
+}
+
+.ds-upload-bigbtn{
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.ds-upload-bigbtn-ring{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width: 96px;
+  height: 96px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.15);
+}
+
+.ds-upload-bigbtn-core{
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.85);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+/* Bottom sheet container */
+.ds-upload-sheet{
+  width: 100%;
+  display:flex;
+  justify-content:center;
+}
+
+.ds-upload-card{
+  width: 544px;           /* Figma */
+  max-width: 92vw;
+}
+
+@media (max-width: 520px){
+  .ds-upload-card{
+    width: 100%;
+    max-width: 100%;
+    border-radius: 16px 16px 0 0;
+    position: fixed;
+    left: 0;
+    bottom: 0;
+  }
+}
+
+/* File row */
+.ds-file-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  margin: 8px 0 16px;
+}
+
+.ds-file-left{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  min-width: 0;
+}
+
+.ds-file-meta{ min-width:0; }
+
+.ds-file-name{
+  font-family: Inter, sans-serif;
+  font-size:16px;
+  line-height: 24px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width: 340px;
+}
+
+.ds-file-size,
+.ds-file-sub{
+  font-family: Inter, sans-serif;
+  font-size: 12px;
+  line-height: 24px;
+  opacity: 0.8;
+}
+
+.ds-file-change{
+  height: 32px;
+  padding: 8px 12px;
+  border: 1px solid #D9D9D9;
+  background: #fff;
+  border-radius: 8px;
+  cursor:pointer;
+  font-family: Inter, sans-serif;
+  font-size: 14px;
+  line-height: 16px;
+}
+
+/* Success */
+.ds-success-text{
+  margin: 12px 0;
+  font-family: Inter, sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.ds-linkbox{
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: rgba(164, 153, 147, 0.1);
+  margin-bottom: 12px;
+}
+
+.ds-linkbox-url{
+  color: #D8640B;
+  text-decoration: underline;
+  word-break: break-all;
+}

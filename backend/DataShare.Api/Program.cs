@@ -43,7 +43,8 @@ builder.Services.AddCors(options =>
     options.AddPolicy("dev", policy =>
         policy.WithOrigins("http://localhost:5173") // Vite
               .AllowAnyHeader()
-              .AllowAnyMethod());
+              .AllowAnyMethod()
+              .WithExposedHeaders("Content-Disposition"));
 });
 
 var conn = builder.Configuration.GetConnectionString("Default");
@@ -51,7 +52,15 @@ builder.Services.AddDbContext<DataShareDbContext>(o => o.UseNpgsql(conn));
 
 builder.Services
     .AddSingleton<IFileStorage, LocalFileStorage>()
-    .AddIdentityCore<AppUser>()
+    .AddIdentityCore<AppUser>(opt =>
+        {
+            opt.User.RequireUniqueEmail = true;
+            opt.Password.RequiredLength = 8;
+            opt.Password.RequireDigit = false;
+            opt.Password.RequireUppercase = false;
+            opt.Password.RequireLowercase = false;
+            opt.Password.RequireNonAlphanumeric = false;
+        })
     .AddRoles<IdentityRole<Guid>>()
     .AddEntityFrameworkStores<DataShareDbContext>();
 
