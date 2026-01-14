@@ -127,4 +127,116 @@ public class FilesController : ControllerBase
 
         return item is null ? NotFound() : Ok(item);
     }
+
+    // GET /api/files?status=all|active|expired
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<MyFileDto>>> List([FromQuery] string? status = null)
+    {
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+            return Unauthorized();
+        var now = DateTime.UtcNow;
+
+        var q = _db.Files
+            .AsNoTracking()
+            .Where(f => f.OwnerId == userId);
+
+        status = (status ?? "all").Trim().ToLowerInvariant();
+
+        if (status == "active")
+            q = q.Where(f => f.ExpiresAt > now);
+        else if (status == "expired")
+            q = q.Where(f => f.ExpiresAt <= now);
+
+        var items = await q
+            .OrderByDescending(f => f.CreatedAt)
+            .Select(f => new MyFileDto(
+                f.Id,
+                f.OriginalFileName,
+                f.SizeBytes,
+                f.ContentType,
+                f.CreatedAt.DateTime,
+                f.ExpiresAt.DateTime,
+                f.Token,
+                f.PasswordHash != null,
+                f.Tags,
+                f.ExpiresAt <= now
+            ))
+            .ToListAsync();
+
+        return Ok(items);
+    }
+
+    // DELETE /api/files/{id}
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+            return Unauthorized();
+
+        var item = await _db.Files.FirstOrDefaultAsync(f => f.Id == id && f.OwnerId == userId, ct);
+        if (item is null) return NotFound();
+
+        // Suppression physique + DB
+        await _storage.DeleteAsync(item.StoredFileName, ct);
+
+        _db.Files.Remove(item);
+        await _db.SaveChangesAsync(ct);
+
+        return NoContent();
+    }
+
+    // GET /api/files/me?status=all|active|expired
+    [HttpGet("me")]
+    public async Task<IActionResult> GetMine([FromQuery] string? status, CancellationToken ct)
+    {
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+            return Unauthorized();
+
+        var now = DateTimeOffset.UtcNow;
+
+        var q = _db.Files
+            .AsNoTracking()
+            .Where(f => f.OwnerId == userId);
+
+        status = status?.Trim().ToLowerInvariant();
+        if (status == "active")
+            q = q.Where(f => f.ExpiresAt > now);
+        else if (status == "expired")
+            q = q.Where(f => f.ExpiresAt <= now);
+
+        var items = await q
+            .OrderByDescending(f => f.CreatedAt)
+            .Select(f => new
+            {
+                f.Id,
+                f.OriginalFileName,
+                f.SizeBytes,
+                f.ContentType,
+                f.CreatedAt,
+                f.ExpiresAt,
+                f.Token,
+                passwordRequired = f.PasswordHash != null,
+                f.Tags
+            })
+            .ToListAsync(ct);
+
+        return Ok(items);
+    }
+
+    public record MyFileDto(
+        Guid Id,
+        string OriginalFileName,
+        long SizeBytes,
+        string? ContentType,
+        DateTime CreatedAt,
+        DateTime ExpiresAt,
+        string Token,
+        bool PasswordRequired,
+        string[]? Tags,
+        bool IsExpired
+    );
+
 }

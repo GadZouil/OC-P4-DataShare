@@ -24,6 +24,19 @@ export type PublicFileMeta = {
   passwordRequired: boolean;
 };
 
+export type MyFileItem = {
+  id: string;
+  originalFileName: string;
+  sizeBytes: number;
+  contentType: string;
+  createdAt: string;
+  expiresAt: string;
+  token: string;
+  passwordRequired: boolean;
+  tags?: string[];
+  shareUrl: string; // lien FRONT /download/:token
+};
+
 function getApiErrorMessage(err: unknown, fallback: string): string {
   const e = err as AxiosError<any>;
   const msg =
@@ -31,7 +44,7 @@ function getApiErrorMessage(err: unknown, fallback: string): string {
     (Array.isArray(e?.response?.data) ? undefined : e?.response?.data?.error) ||
     e?.message;
 
-  return (typeof msg === "string" && msg.trim().length > 0) ? msg : fallback;
+  return typeof msg === "string" && msg.trim().length > 0 ? msg : fallback;
 }
 
 /**
@@ -55,8 +68,6 @@ export async function uploadFile(
     });
 
     const data = res.data as Omit<UploadResult, "shareUrl">;
-
-    // Lien FRONT (route /download/:token)
     const shareUrl = new URL(`/download/${data.token}`, window.location.origin).toString();
 
     return { ...data, shareUrl };
@@ -71,37 +82,16 @@ export async function uploadFile(
 export async function getFileMeta(token: string): Promise<PublicFileMeta> {
   try {
     const res = await api.get(`/public/files/${encodeURIComponent(token)}`);
-    const d = res.data as any;
-
-    // Normalisation: certains back renvoient fileName, d'autres originalFileName, etc.
-    const fileName =
-      d.originalFileName ??
-      d.fileName ??
-      d.name ??
-      d.filename ??
-      "download";
-
-    return {
-      ...d,
-      fileName,
-    } as PublicFileMeta;
+    return res.data as PublicFileMeta;
   } catch (err: any) {
     const status = err?.response?.status;
-
-    // 404 / 410 = lien invalide / expiré
-    if (status === 404 || status === 410) {
-      throw new Error("Lien invalide ou expiré.");
-    }
-
-    throw new Error(
-      getApiErrorMessage(err, "Impossible de charger les informations du fichier.")
-    );
+    if (status === 404 || status === 410) throw new Error("Lien invalide ou expiré.");
+    throw new Error(getApiErrorMessage(err, "Impossible de charger les informations du fichier."));
   }
 }
 
 /**
  * Download public -> POST /api/public/files/{token}/download
- * (backend renvoie directement le fichier en File(stream, contentType, originalName))
  */
 export async function downloadFile(token: string, password?: string): Promise<void> {
   try {
@@ -111,15 +101,14 @@ export async function downloadFile(token: string, password?: string): Promise<vo
       { responseType: "blob" }
     );
 
-    // Récup du nom de fichier (Content-Disposition)
     const cd = String(res.headers?.["content-disposition"] || "");
-    const m = /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i.exec(cd);
-    const filename = m?.[1] ?? m?.[2] ?? "download";
+    const m = /filename\*=UTF-8''([^;]+)|filename="([^"]+)"/i.exec(cd);
+    const raw = m?.[1] || m?.[2] || "download";
+    const safeName = decodeURIComponent(raw);
 
-
-    const safeName = decodeURIComponent(filename);
-
-    const blob = new Blob([res.data], { type: res.headers?.["content-type"] || "application/octet-stream" });
+    const blob = new Blob([res.data], {
+      type: res.headers?.["content-type"] || "application/octet-stream",
+    });
     const url = URL.createObjectURL(blob);
 
     const a = document.createElement("a");
@@ -132,15 +121,45 @@ export async function downloadFile(token: string, password?: string): Promise<vo
     URL.revokeObjectURL(url);
   } catch (err: any) {
     const status = err?.response?.status;
-
-    if (status === 401) {
-      // Cas password requis / invalid
-      throw new Error(err?.response?.data?.message || "Mot de passe incorrect.");
-    }
-    if (status === 404 || status === 410) {
-      throw new Error("Lien invalide ou expiré.");
-    }
-
+    if (status === 401) throw new Error(err?.response?.data?.message || "Mot de passe incorrect.");
+    if (status === 404 || status === 410) throw new Error("Lien invalide ou expiré.");
     throw new Error(getApiErrorMessage(err, "Téléchargement impossible."));
+  }
+}
+
+/**
+ * Liste des fichiers de l'utilisateur connecté -> GET /api/files/me
+ * status: all | active | expired
+ */
+export async function listMyFiles(status: "all" | "active" | "expired" = "active"): Promise<MyFileItem[]> {
+  try {
+    const res = await api.get("/files/me", { params: { status } });
+    const arr = (res.data ?? []) as any[];
+
+    return arr.map((d) => ({
+      id: d.id,
+      originalFileName: d.originalFileName,
+      sizeBytes: d.sizeBytes,
+      contentType: d.contentType,
+      createdAt: d.createdAt,
+      expiresAt: d.expiresAt,
+      token: d.token,
+      passwordRequired: !!d.passwordRequired,
+      tags: d.tags ?? [],
+      shareUrl: new URL(`/download/${d.token}`, window.location.origin).toString(),
+    }));
+  } catch (err) {
+    throw new Error(getApiErrorMessage(err, "Impossible de charger vos fichiers."));
+  }
+}
+
+/**
+ * Supprimer un fichier (auth) -> DELETE /api/files/{id}
+ */
+export async function deleteMyFile(id: string): Promise<void> {
+  try {
+    await api.delete(`/files/${encodeURIComponent(id)}`);
+  } catch (err) {
+    throw new Error(getApiErrorMessage(err, "Suppression impossible."));
   }
 }

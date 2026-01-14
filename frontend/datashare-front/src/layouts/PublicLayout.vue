@@ -3,9 +3,11 @@
     <header class="ds-header">
       <div class="ds-brand">DataShare</div>
 
-      <RouterLink class="ds-header-action" :to="actionTo">
-        {{ actionLabel }}
-      </RouterLink>
+      <div class="ds-header-right">
+        <slot name="header-actions">
+          <RouterLink class="ds-header-action" :to="actionTo">{{ actionLabel }}</RouterLink>
+        </slot>
+      </div>
     </header>
 
     <main class="ds-content">
@@ -17,19 +19,21 @@
 </template>
 
 <script setup lang="ts">
-  import { computed } from "vue";
-  import { isAuthenticated } from "../api/auth";
+import { computed } from "vue";
+import { useRoute } from "vue-router";
+import { getJwt } from "../api/auth";
+
+  const route = useRoute();
+  const isLoggedIn = computed(() => {
+    route.fullPath; // dépendance reactive
+    return !!getJwt();
+  });
 
   const props = defineProps<{
     headerActionLabel: string;
     headerActionTo: string;
   }>();
 
-  const actionLabel = computed(() =>
-    isAuthenticated.value ? "Mon espace" : (props.headerActionLabel ?? "Se connecter")
-  );
-
-  const actionTo = computed(() =>
-    isAuthenticated.value ? "/" : (props.headerActionTo ?? "/login")
-  );
+  const actionLabel = computed(() => (isLoggedIn.value ? "Mon espace" : (props.headerActionLabel ?? "Se connecter")));
+  const actionTo = computed(() => (isLoggedIn.value ? "/me" : (props.headerActionTo ?? "/login")));
 </script>
