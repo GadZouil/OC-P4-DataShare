@@ -70,6 +70,39 @@
             <div class="ds-hint">Max 7 jours.</div>
           </div>
 
+          <div class="ds-field">
+            <div class="ds-label">Tags (optionnel)</div>
+            <div class="ds-tag-input-wrapper">
+              <input
+                class="ds-tag-input"
+                v-model="tagInput"
+                placeholder="Ajouter un tag (Enter pour ajouter)"
+                @keydown.enter="addTag"
+              />
+            </div>
+            <div v-if="tagError" class="ds-callout ds-callout--error">
+              {{ tagError }}
+            </div>
+            <div v-if="tags.length > 0" class="ds-tags">
+              <div
+                v-for="(tag, idx) in tags"
+                :key="idx"
+                class="ds-chip"
+              >
+                <span>{{ tag }}</span>
+                <button
+                  class="ds-chip-remove"
+                  type="button"
+                  @click="removeTag(idx)"
+                  :aria-label="`Supprimer ${tag}`"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            <div class="ds-hint">Max 24 caractères par tag, pas de doublons.</div>
+          </div>
+
           <button class="ds-btn" type="button" :disabled="loading || !file" @click="doUpload">
             {{ loading ? "Téléversement..." : "Téléverser" }}
           </button>
@@ -116,6 +149,9 @@ const file = ref<File | null>(null);
 
 const password = ref("");
 const expiresInDays = ref<number>(7);
+const tags = ref<string[]>([]);
+const tagError = ref<string | null>(null);
+const tagInput = ref("");
 
 const loading = ref(false);
 const error = ref<string | null>(null);
@@ -171,7 +207,8 @@ async function doUpload() {
     const res = await uploadFile(
       file.value,
       expiresInDays.value,
-      password.value?.trim() || undefined
+      password.value?.trim() || undefined,
+      tags.value
     );
 
     if (!res.shareUrl) {
@@ -194,5 +231,41 @@ async function copyLink() {
   } catch {
     window.prompt("Copie le lien :", shareUrl.value);
   }
+}
+
+function normalizeTag(tag: string): string {
+  return tag.trim().toLowerCase();
+}
+
+function addTag() {
+  tagError.value = null;
+
+  const t = tagInput.value.trim();
+
+  if (!t) {
+    tagError.value = "Le tag ne peut pas être vide.";
+    return;
+  }
+
+  if (t.length > 24) {
+    tagError.value = "Tag trop long (24 caractères max).";
+    return;
+  }
+
+  const normalized = t.toLowerCase();
+  const exists = tags.value.some((x) => x.toLowerCase() === normalized);
+
+  if (exists) {
+    tagError.value = "Ce tag est déjà présent.";
+    return;
+  }
+
+  tags.value.push(t);
+  tagInput.value = "";
+}
+
+function removeTag(idx: number) {
+  tags.value.splice(idx, 1);
+  tagError.value = null;
 }
 </script>

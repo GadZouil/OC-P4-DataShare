@@ -36,6 +36,15 @@
       <main class="ds-me-content">
         <h1 class="ds-me-title">Mes fichiers</h1>
 
+        <div class="ds-me-filter-section">
+          <input
+            class="ds-me-filter-input"
+            v-model="filterTag"
+            type="text"
+            placeholder="Filtrer par tag…"
+          />
+        </div>
+
         <div class="ds-me-tabs" role="tablist" aria-label="Filtres">
           <button class="ds-me-tab" :class="{ 'is-active': tab === 'all' }" type="button" @click="tab = 'all'">
             Tous
@@ -85,6 +94,15 @@
                 <div class="ds-me-name" :title="f.originalFileName">{{ f.originalFileName }}</div>
                 <div class="ds-me-sub" :class="{ 'is-expired': isExpired(f) }">
                   {{ expiryLabel(f) }}
+                </div>
+                <div v-if="f.tags && f.tags.length > 0" class="ds-me-tags">
+                  <span
+                    v-for="(tag, idx) in f.tags"
+                    :key="idx"
+                    class="ds-me-chip"
+                  >
+                    {{ tag }}
+                  </span>
                 </div>
               </div>
             </div>
@@ -195,6 +213,7 @@ const tab = ref<"all" | "active" | "expired">("all");
 
 const drawerOpen = ref(false);
 const openMenuId = ref<string | null>(null);
+const filterTag = ref("");
 
 const username = computed(() => getUsername() ?? "Utilisateur");
 const userInitial = computed(() => (username.value.trim()[0] ?? "U").toUpperCase());
@@ -225,9 +244,21 @@ const filteredFiles = computed(() => {
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
-  if (tab.value === "all") return all;
-  if (tab.value === "active") return all.filter((f) => !isExpired(f));
-  return all.filter((f) => isExpired(f));
+  let filtered = all;
+  
+  // Appliquer le filtre de statut (all, active, expired)
+  if (tab.value === "active") filtered = filtered.filter((f) => !isExpired(f));
+  else if (tab.value === "expired") filtered = filtered.filter((f) => isExpired(f));
+
+  // Appliquer le filtre de tag
+  if (filterTag.value.trim()) {
+    const searchTag = filterTag.value.trim().toLowerCase();
+    filtered = filtered.filter((f) =>
+      f.tags?.some((tag) => tag.toLowerCase().includes(searchTag))
+    );
+  }
+
+  return filtered;
 });
 
 async function loadFiles() {
