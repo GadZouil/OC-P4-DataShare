@@ -6,6 +6,7 @@ type IdentityError = { code: string; description?: string };
 
 const JWT_STORAGE_KEY = "jwt";
 const jwtRef = ref<string | null>(localStorage.getItem(JWT_STORAGE_KEY));
+const USERNAME_KEY = "user_name";
 
 window.addEventListener("storage", (e) => {
   if (e.key === JWT_STORAGE_KEY) jwtRef.value = e.newValue;
@@ -67,6 +68,10 @@ export function clearJwt() {
   jwtRef.value = null;
 }
 
+export function logout() {
+  clearJwt();
+}
+
 export function isAuthenticated(): boolean {
   return !!jwtRef.value;
 }
@@ -95,4 +100,17 @@ export async function login(email: string, password: string) {
   } catch (err) {
     throw new Error(getApiErrorMessage(err, "Identifiants invalides."));
   }
+}
+
+export function setUsername(username: string) {
+  const v = username?.trim();
+  if (v) localStorage.setItem(USERNAME_KEY, v);
+}
+
+export function getUsername(): string | null {
+  return localStorage.getItem(USERNAME_KEY);
+}
+
+export function clearUsername() {
+  localStorage.removeItem(USERNAME_KEY);
 }
