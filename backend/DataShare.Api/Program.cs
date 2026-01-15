@@ -64,6 +64,8 @@ builder.Services
     .AddRoles<IdentityRole<Guid>>()
     .AddEntityFrameworkStores<DataShareDbContext>();
 
+builder.Services.AddHostedService<ExpiredFilesCleanupService>();
+
 builder.Services.Configure<FormOptions>(o =>
 {
     o.MultipartBodyLengthLimit = 1_073_741_824; // 1 Go
