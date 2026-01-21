@@ -63,7 +63,8 @@ export async function uploadFile(
   if (tags?.length) tags.forEach((t) => form.append("tags", t));
 
   try {
-    const res = await api.post("/files", form, {
+    const endpoint = localStorage.getItem("jwt") ? "/files" : "/public/files";
+    const res = await api.post(endpoint, form, {
       headers: { "Content-Type": "multipart/form-data" },
     });
 
@@ -163,3 +164,30 @@ export async function deleteMyFile(id: string): Promise<void> {
     throw new Error(getApiErrorMessage(err, "Suppression impossible."));
   }
 }
+
+export async function uploadPublicFile(
+  file: File,
+  expiresInDays: number,
+  password?: string,
+  tags?: string[]
+): Promise<UploadResult> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("expiresInDays", String(expiresInDays));
+  if (password && password.trim().length > 0) form.append("password", password.trim());
+  if (tags?.length) tags.forEach((t) => form.append("tags", t));
+
+  try {
+    const res = await api.post("/public/files", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    const data = res.data as Omit<UploadResult, "shareUrl">;
+
+    const shareUrl = new URL(`/download/${data.token}`, window.location.origin).toString();
+    return { ...data, shareUrl };
+  } catch (err) {
+    throw new Error(getApiErrorMessage(err, "Téléversement impossible."));
+  }
+}
+

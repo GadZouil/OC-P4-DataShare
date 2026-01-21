@@ -6,8 +6,8 @@ public class FileItem
 {
     public Guid Id { get; set; } = Guid.NewGuid();
 
-    [Required]
-    public Guid OwnerId { get; set; }
+    // [Required]
+    public Guid? OwnerId { get; set; }
     public AppUser? Owner { get; set; }
 
     // Nom original (affichage)

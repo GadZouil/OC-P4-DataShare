@@ -36,6 +36,17 @@ public class FilesController : ControllerBase
         public string[]? Tags { get; set; }
     }
 
+    private static readonly HashSet<string> ForbiddenExt = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".exe", ".bat", ".cmd", ".com", ".msi", ".scr", ".ps1"
+    };
+
+    private static bool IsForbiddenFile(string fileName)
+    {
+        var ext = Path.GetExtension(fileName);
+        return !string.IsNullOrWhiteSpace(ext) && ForbiddenExt.Contains(ext);
+    }
+
     [HttpPost]
     [RequestSizeLimit(MaxBytes)]
     public async Task<IActionResult> Upload([FromForm] UploadRequest req, CancellationToken ct)
@@ -48,6 +59,12 @@ public class FilesController : ControllerBase
 
         if (req.ExpiresInDays is < 1 or > 7)
             return BadRequest("ExpiresInDays must be between 1 and 7.");
+
+        if (IsForbiddenFile(req.File.FileName))
+            return BadRequest("Forbidden file type.");
+
+        if (!string.IsNullOrWhiteSpace(req.Password) && req.Password.Trim().Length < 6)
+            return BadRequest("Password must be at least 6 characters.");
 
         var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
@@ -81,7 +98,7 @@ public class FilesController : ControllerBase
         if (!string.IsNullOrWhiteSpace(req.Password))
         {
             var hasher = new PasswordHasher<FileItem>();
-            item.PasswordHash = hasher.HashPassword(item, req.Password);
+            item.PasswordHash = hasher.HashPassword(item, req.Password.Trim());
         }
 
         _db.Files.Add(item);

@@ -136,7 +136,7 @@
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import PublicLayout from "../layouts/PublicLayout.vue";
-import { uploadFile } from "../api/files";
+import { uploadFile, uploadPublicFile } from "../api/files";
 import { isAuthenticated } from "../api/auth";
 
 type Step = "idle" | "form" | "done";
@@ -159,15 +159,15 @@ const shareUrl = ref("");
 
 const isLoggedIn = computed(() => isAuthenticated());
 const headerLabel = computed(() => (isLoggedIn.value ? "Mon Espace" : "Se connecter"));
-const headerTo = computed(() => (isLoggedIn.value ? "/" : "/login"));
+const headerTo = computed(() => (isLoggedIn.value ? "/me" : "/login"));
 
 function pickFile() {
   error.value = null;
 
-  if (!isLoggedIn.value) {
-    router.push("/login");
-    return;
-  }
+  // if (!isLoggedIn.value) {
+  //   router.push("/login");
+  //   return;
+  // }
 
   fileInput.value?.click();
 }
@@ -195,21 +195,19 @@ function prettySize(bytes: number): string {
 async function doUpload() {
   error.value = null;
 
-  if (!isLoggedIn.value) {
-    router.push("/login");
-    return;
-  }
+  // if (!isLoggedIn.value) {
+  //   router.push("/login");
+  //   return;
+  // }
 
   if (!file.value) return;
 
   loading.value = true;
   try {
-    const res = await uploadFile(
-      file.value,
-      expiresInDays.value,
-      password.value?.trim() || undefined,
-      tags.value
-    );
+    const res = isAuthenticated()
+      ? await uploadFile(file.value, expiresInDays.value, password.value, tags.value)
+      : await uploadPublicFile(file.value, expiresInDays.value, password.value, tags.value);
+
 
     if (!res.shareUrl) {
       throw new Error("Réponse upload invalide : pas de lien retourné.");
