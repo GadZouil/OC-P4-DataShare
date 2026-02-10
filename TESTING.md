@@ -20,20 +20,28 @@ L'approche qualité repose sur la pyramide des tests, privilégiant une base sol
 
 ---
 
-## 2. Plan de Tests (Fonctionnalités Critiques)
+## 2. Plan de Tests (Couverture Fonctionnelle)
 
-Le tableau suivant liste les scénarios critiques validés par la suite de tests automatisée.
+Le tableau suivant synthétise les scénarios validés, répartis entre cas nominaux (fonctionnement normal) et gestion des erreurs.
 
-| Fonctionnalité | Type de Test | Cas de Test (Scénario) | Critères d'Acceptation |
+| Module | Fonctionnalité | Type de Scénario | Résultat Attendu |
 | :--- | :--- | :--- | :--- |
-| **Authentification** | Intégration | Inscription nouvel utilisateur | Retour 200 OK + JWT Token généré |
-| **Authentification** | Intégration | Login avec mauvais mot de passe | Retour 401 Unauthorized |
-| **Upload Fichier** | Intégration | Upload utilisateur authentifié | Fichier stocké, Entrée BDD créée, Retour 201 Created |
-| **Upload Fichier** | Intégration | Upload extension interdite (.exe) | Fichier rejeté, Retour 400 Bad Request |
-| **Upload Public** | Intégration | Upload sans compte (Anonyme) | Fichier stocké, Token de partage généré |
-| **Téléchargement** | Intégration | Téléchargement fichier existant | Flux binaire reçu, Content-Type correct |
-| **Nettoyage** | Unitaire | Suppression fichiers expirés | Le service supprime le fichier physique et l'entrée BDD |
-| **Sécurité** | Unitaire | Accès ressource d'un autre user | Retour 403 Forbidden ou 404 (selon config) |
+| **Auth** | Inscription | **Nominal** : Création compte valide | 200 OK + Token JWT |
+| **Auth** | Connexion | **Nominal** : Login email/password valides | 200 OK + Token JWT |
+| **Auth** | Connexion | **Erreur** : Mot de passe incorrect | 401 Unauthorized |
+| **Auth** | Connexion | **Erreur** : Email inexistant | 401 Unauthorized (ou 404 selon config) |
+| **Files** | Upload Privé | **Nominal** : Fichier valide (jpg/png/txt) | 201 Created + Métadonnées JSON |
+| **Files** | Upload Privé | **Erreur** : Aucun fichier envoyé | 400 Bad Request |
+| **Files** | Upload Privé | **Erreur** : Fichier trop volumineux | 400 Bad Request / 413 Payload Too Large |
+| **Files** | Listing | **Nominal** : Récupérer ses fichiers | 200 OK + Liste JSON |
+| **Files** | Download | **Nominal** : Télécharger son fichier | 200 OK + FileStream |
+| **Files** | Download | **Erreur** : ID de fichier inexistant | 404 Not Found |
+| **Files** | Suppression | **Nominal** : Supprimer son fichier | 204 No Content |
+| **Files** | Suppression | **Erreur** : Supprimer fichier introuvable | 404 Not Found |
+| **Public** | Upload Anonyme | **Nominal** : Transfert sans compte | 201 Created + URL de partage |
+| **Public** | Download Anonyme | **Nominal** : Accès via lien public | 200 OK + FileStream |
+| **Core** | Stockage Local | **Unitaire** : Écriture sur disque | Le fichier physique est créé dans `uploads/` |
+| **Core** | Stockage Local | **Unitaire** : Lecture du disque | Le flux binaire est correctement ouvert |
 
 ---
 
@@ -49,12 +57,12 @@ Pour lancer l'ensemble de la suite de tests :
 dotnet test
 ```
 
-# 1. Exécution avec collecte
+### 1. Exécution avec collecte
 ```bash
 dotnet test --collect:"XPlat Code Coverage" --settings coverlet.runsettings
 ```
 
-# 2. Génération du rapport HTML
+### 2. Génération du rapport HTML
 ```bash
 reportgenerator -reports:"**/coverage.cobertura.xml" -targetdir:"coverage-report" -reporttypes:Html
 ```
