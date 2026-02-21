@@ -70,7 +70,6 @@ public class FilesController : ControllerBase
         if (string.IsNullOrWhiteSpace(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
             return Unauthorized();
 
-        // Token URL-safe
         var tokenBytes = RandomNumberGenerator.GetBytes(32);
         var token = WebEncoders.Base64UrlEncode(tokenBytes);
 

@@ -14,8 +14,9 @@
           <div class="ds-label">Email</div>
           <input
             class="ds-input"
-            v-model="email"
-            placeholder="Saisissez votre email…"
+            v-model.trim="email"
+            type="email"
+            inputmode="email"
             autocomplete="email"
             required
           />

@@ -168,6 +168,9 @@ function pickFile() {
   //   router.push("/login");
   //   return;
   // }
+  if (fileInput.value) {
+    fileInput.value.value = '';
+  }
 
   fileInput.value?.click();
 }

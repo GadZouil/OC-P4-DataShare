@@ -40,7 +40,7 @@ Le tableau suivant synthétise les scénarios validés, répartis entre cas nomi
 | **Files** | Suppression | **Erreur** : Supprimer fichier introuvable | 404 Not Found |
 | **Public** | Upload Anonyme | **Nominal** : Transfert sans compte | 201 Created + URL de partage |
 | **Public** | Download Anonyme | **Nominal** : Accès via lien public | 200 OK + FileStream |
-| **Core** | Stockage Local | **Unitaire** : Écriture sur disque | Le fichier physique est créé dans `uploads/` |
+| **Core** | Stockage Local | **Unitaire** : Écriture sur disque | Le fichier physique est créé dans `Uploads/` |
 | **Core** | Stockage Local | **Unitaire** : Lecture du disque | Le flux binaire est correctement ouvert |
 
 ---
