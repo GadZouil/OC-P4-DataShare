@@ -37,3 +37,7 @@ frontend/**/.vite/
 **/.vite/
 backend/DataShare.Api/storage/
 
+# Environment & local overrides
+.env
+appsettings.*.local.json
+
