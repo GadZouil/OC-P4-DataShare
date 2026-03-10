@@ -48,8 +48,8 @@ Le tableau suivant synthétise les scénarios validés, répartis entre cas nomi
 ## 3. Exécution des Tests
 
 ### Prérequis
-*   .NET 9 SDK installé
-*   Docker (optionnel, si tests SQL Server réels)
+*   .NET 8 SDK installé
+*   Docker (optionnel, si tests PostgreSQL réels)
 
 ### Commandes
 Pour lancer l'ensemble de la suite de tests :
@@ -71,13 +71,13 @@ reportgenerator -reports:"**/coverage.cobertura.xml" -targetdir:"coverage-report
 
 Lancer les tests en mode interactif (interface graphique) :
 ```bash
-cd frontend
+cd frontend/datashare-front
 npx cypress open
 ```
 
 Lancer en mode headless (CI/CD) :
 ```bash
-cd frontend
+cd frontend/datashare-front
 npx cypress run
 ```
 

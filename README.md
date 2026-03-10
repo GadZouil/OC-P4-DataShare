@@ -1,6 +1,6 @@
 # DataShare — Plateforme de partage de fichiers
 
-Application full stack de partage de fichiers sécurisé, développée dans le cadre du Projet 5 de la formation OpenClassrooms Développeur Full Stack.
+Application full stack de partage de fichiers sécurisé, développée dans le cadre du Projet 4 de la formation OpenClassrooms Développeur Full Stack.
 
 ## Stack technique
 
