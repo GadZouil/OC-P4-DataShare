@@ -2,6 +2,22 @@
 
 Ce document présente les résultats des tests de charge sur l'API et le budget de performance défini pour le frontend.
 
+---
+
+## 0. Budget Performance
+
+Objectifs cibles à respecter en production :
+
+| Indicateur | Cible |
+| :--- | :--- |
+| **Temps de réponse API (p95)** | < 200 ms |
+| **Upload d'un fichier de 10 MB** | < 3 s |
+| **Time to Interactive (TTI) — frontend** | < 2 s |
+
+Ces seuils servent de référence pour valider chaque mise en production et orienter les décisions d'optimisation.
+
+---
+
 ## 1. Performance Backend (API)
 
 **Objectif :** Valider la stabilité de l'upload de fichiers sous charge concurrente.
@@ -48,3 +64,52 @@ Afin de garantir une expérience utilisateur fluide, les limites suivantes ont �
 *   Utilisation de **Vite** pour un bundling optimisé (Tree-shaking).
 *   Chargement asynchrone des composants (Lazy Loading sur les routes Vue Router).
 *   Assets CSS minifiés automatiquement en production.
+
+---
+
+## 3. Métriques Frontend (Lighthouse)
+
+### Comment mesurer
+
+1. Lancer l'application en mode production (`npm run build` puis `npm run preview`).
+2. Ouvrir Chrome DevTools → onglet **Lighthouse**.
+3. Sélectionner : **Performance**, **Accessibility**, **Best Practices**, **SEO** → « Analyze page load ».
+4. Ou via CLI : `npx lighthouse http://localhost:4173 --output=html --output-path=./lighthouse-report.html`
+
+### Scores cibles
+
+| Catégorie | Score cible |
+| :--- | :--- |
+| **Performance** | ≥ 90 |
+| **Accessibility** | ≥ 90 |
+| **Best Practices** | ≥ 90 |
+| **SEO** | ≥ 80 |
+
+> Les scores réels doivent être ajoutés ici après chaque audit Lighthouse en production.
+
+---
+
+## 4. Métriques Backend (temps de réponse par endpoint)
+
+Les temps de réponse moyens observés proviennent des logs applicatifs et des tests k6 décrits en section 1.
+
+| Endpoint | Méthode | Temps moyen | P95 | Source |
+| :--- | :--- | :--- | :--- | :--- |
+| `POST /api/Files` (upload) | POST | ~107 ms | ~125 ms | Test k6 (17/02/2026) |
+| `GET /api/files/me` | GET | À mesurer | À mesurer | Logs / k6 |
+| `POST /api/auth/login` | POST | À mesurer | À mesurer | Logs / k6 |
+
+> Compléter ce tableau en ajoutant un scénario k6 ciblant les endpoints GET, ou en consultant les logs structurés du serveur .NET (`app.UseSerilogRequestLogging()` ou middleware de timing).
+
+---
+
+## 6. Axes d'Amélioration
+
+Pistes d'optimisation non encore implémentées, classées par impact estimé :
+
+*   **Cache Redis** — Mettre en cache les réponses fréquentes (ex. `GET /api/files/me`) pour réduire la charge sur la base de données. TTL de 30 à 60 secondes selon la fraîcheur requise.
+*   **Compression gzip / Brotli** — Activer la compression des réponses HTTP côté serveur .NET (`app.UseResponseCompression()`) pour réduire le poids des réponses JSON et des assets.
+*   **CDN** — Servir les fichiers statiques frontend (JS/CSS/images) et les fichiers uploadés via un CDN (ex. Cloudflare, Azure CDN) afin de réduire la latence réseau pour les utilisateurs distants.
+*   **Pagination côté serveur** — Si la liste de fichiers (`/api/files/me`) venait à croître, implémenter une pagination curseur ou offset côté API plutôt que de filtrer côté client.
+*   **Index base de données** — Vérifier la présence d'index sur les colonnes fréquemment filtrées (ex. `UserId`, `CreatedAt`) dans la table des fichiers.
+*   **Optimisation des images** — Générer des miniatures et servir des formats modernes (WebP/AVIF) pour les previews de fichiers image.
