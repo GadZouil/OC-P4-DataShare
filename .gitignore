@@ -24,6 +24,7 @@ pnpm-debug.log*
 **/.nyc_output/
 **/TestResults/
 **/lcov-report/
+**/coverage-report/
 
 # Draw.io autosaves
 *.drawio.bkp
