@@ -2,24 +2,29 @@
 
 ## 1. Gestion du Service (Docker)
 
-L'application utilise Docker pour le service PostgreSQL. Le backend .NET et le frontend Vue se lancent séparément en développement.
+L'application complète (base de données, API backend, frontend) se lance via Docker Compose.
 
-### Démarrage et Arrêt
+### Lancement complet
 
 ```bash
-# Lancer PostgreSQL
-docker-compose up -d
+docker-compose up -d        # Lance tout (db, api, frontend)
+docker-compose logs -f api  # Voir les logs API
+docker-compose down         # Arrêter tous les services
+```
 
-# Arrêter PostgreSQL
-docker-compose down
+### Démarrage et Arrêt (détail par service)
+
+```bash
+# Lancer uniquement la base de données
+docker-compose up -d db
 
 # Voir les logs PostgreSQL
 docker logs -f oc-p4-datashare-postgres
 
-# Lancer le backend
-cd backend/DataShareAPI && dotnet run
+# Lancer le backend en développement local (hors Docker)
+cd backend/DataShare.Api && dotnet run
 
-# Lancer le frontend
+# Lancer le frontend en développement local (hors Docker)
 cd frontend/datashare-front && npm run dev
 ```
 
