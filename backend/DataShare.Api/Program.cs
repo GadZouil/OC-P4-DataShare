@@ -36,6 +36,9 @@ builder.Services
         opt.User.RequireUniqueEmail = true;
         opt.Password.RequiredLength = 8;
         opt.Password.RequireDigit = false;
+        opt.Password.RequireNonAlphanumeric = false;
+        opt.Password.RequireUppercase = false;
+        opt.Password.RequireLowercase = false;
     })
     .AddRoles<IdentityRole<Guid>>()
     .AddEntityFrameworkStores<DataShareDbContext>();
@@ -85,6 +88,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 
 app.Run();
 

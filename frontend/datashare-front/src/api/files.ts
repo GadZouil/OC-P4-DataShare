@@ -64,9 +64,7 @@ export async function uploadFile(
 
   try {
     const endpoint = localStorage.getItem("jwt") ? "/files" : "/public/files";
-    const res = await api.post(endpoint, form, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    const res = await api.post(endpoint, form);
 
     const data = res.data as Omit<UploadResult, "shareUrl">;
     const shareUrl = new URL(`/download/${data.token}`, window.location.origin).toString();
@@ -178,9 +176,7 @@ export async function uploadPublicFile(
   if (tags?.length) tags.forEach((t) => form.append("tags", t));
 
   try {
-    const res = await api.post("/public/files", form, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    const res = await api.post("/public/files", form);
 
     const data = res.data as Omit<UploadResult, "shareUrl">;
 

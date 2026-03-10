@@ -198,12 +198,12 @@ function prettySize(bytes: number): string {
 async function doUpload() {
   error.value = null;
 
-  // if (!isLoggedIn.value) {
-  //   router.push("/login");
-  //   return;
-  // }
-
   if (!file.value) return;
+
+  if (password.value.trim().length > 0 && password.value.trim().length < 6) {
+    error.value = "Mot de passe : minimum 6 caractères.";
+    return;
+  }
 
   loading.value = true;
   try {

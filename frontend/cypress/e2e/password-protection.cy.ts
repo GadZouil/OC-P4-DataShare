@@ -37,7 +37,7 @@ describe('Scénario Sécurité : Fichiers protégés par mot de passe', () => {
       // ==========================================================
       cy.request({
         method: 'POST',
-        url: `http://localhost:5180/api/public/files/${fileId}/download`,
+        url: `/api/public/files/${fileId}/download`,
         body: {}, // Pas de mot de passe envoyé
         failOnStatusCode: false // Important : on s'attend à une erreur, donc ne pas faire échouer le test
       }).then((response) => {
@@ -51,7 +51,7 @@ describe('Scénario Sécurité : Fichiers protégés par mot de passe', () => {
       // ==========================================================
       cy.request({
         method: 'POST',
-        url: `http://localhost:5180/api/public/files/${fileId}/download`,
+        url: `/api/public/files/${fileId}/download`,
         body: { password: filePassword }, // On envoie le JSON avec le pass
       }).then((response) => {
         expect(response.status).to.eq(200);

@@ -68,7 +68,7 @@ describe('Scénario Complet & Sécurité', () => {
         // J'ai gardé ta configuration exacte (POST et URL publique) puisque tu as confirmé qu'elle fonctionne
         cy.request({
             method: 'POST',
-            url: `http://localhost:5180/api/public/files/${token}/download`,
+            url: `/api/public/files/${token}/download`,
             body: {},
         }).then((response) => {
             expect(response.status).to.eq(200);
