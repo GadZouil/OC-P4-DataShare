@@ -20,7 +20,7 @@ services:
     container_name: oc-p4-datashare-api
     environment:
       ASPNETCORE_URLS: "http://+:5000"
-      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=datashare;Username=datashare;Password=datashare"
+      ConnectionStrings__Default: "Host=db;Port=5432;Database=datashare;Username=datashare;Password=datashare"
       Jwt__Key: "change-me-in-production-secret-key-32chars"
       Jwt__Issuer: "DataShareApi"
       Jwt__Audience: "DataShareClient"
