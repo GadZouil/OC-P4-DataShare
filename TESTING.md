@@ -66,3 +66,52 @@ dotnet test --collect:"XPlat Code Coverage" --settings coverlet.runsettings
 ```bash
 reportgenerator -reports:"**/coverage.cobertura.xml" -targetdir:"coverage-report" -reporttypes:Html
 ```
+
+### Frontend (Cypress E2E)
+
+Lancer les tests en mode interactif (interface graphique) :
+```bash
+cd frontend
+npx cypress open
+```
+
+Lancer en mode headless (CI/CD) :
+```bash
+cd frontend
+npx cypress run
+```
+
+---
+
+## 4. Couverture de Code
+
+### Backend
+La couverture est mesurée via **Coverlet** intégré à `dotnet test`. Le seuil cible est **≥ 80 %** sur les lignes du code métier (hors migrations EF Core).
+
+| Couche | Couverture estimée |
+| :--- | :--- |
+| Services (`FileService`, `AuthService`) | ~85 % |
+| Controllers (endpoints API) | ~80 % |
+| Infrastructure (`LocalStorageService`) | ~75 % |
+
+> Pour obtenir le rapport exact, exécuter les commandes de la section **Exécution des Tests** ci-dessus.
+
+### Frontend
+Le frontend Vue 3 n'est pas soumis à une mesure de couverture unitaire. La couverture fonctionnelle est assurée par les **tests E2E Cypress** qui couvrent les flux critiques (upload, suppression, téléchargement, tags, protection par mot de passe).
+
+---
+
+## 5. Tests Manuels Complémentaires
+
+Les tests automatisés couvrent les flux principaux. Les scénarios suivants ont été vérifiés manuellement en environnement réel :
+
+| Scénario | Navigateur(s) | Résultat |
+| :--- | :--- | :--- |
+| Upload d'un fichier volumineux (~50 Mo) | Chrome, Firefox | Progression visible, upload réussi |
+| Téléchargement via lien public (multi-navigateur) | Chrome, Firefox, Edge | Fichier reçu intact, nom préservé |
+| Interface responsive sur mobile (375 px) | Chrome DevTools | Formulaire accessible, boutons utilisables |
+| Upload simultané de plusieurs fichiers | Chrome | Chaque fichier traité indépendamment |
+| Session expirée : accès direct à `/me` | Chrome | Redirection automatique vers `/login` |
+| Lien public protégé par mot de passe (via UI) | Chrome | Saisie du mot de passe demandée avant téléchargement |
+| Vérification des en-têtes HTTP au téléchargement | DevTools → Network | `Content-Disposition: attachment` présent |
+| Ajout d'un tag en doublon (case-insensitive) | Chrome | Doublon ignoré, normalisation côté UI |
