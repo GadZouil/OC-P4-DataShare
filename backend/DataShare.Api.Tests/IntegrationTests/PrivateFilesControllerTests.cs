@@ -69,7 +69,7 @@ public class PrivateFilesControllerTests : IClassFixture<CustomWebApplicationFac
         var uploadRes = await _client.PostAsync("/api/files", content);
         uploadRes.EnsureSuccessStatusCode();
 
-        // Appel de GetMine (souvent mappé sur GET /api/files ou /api/files/mine)
+        // Appel de GetMine
         var listRes = await _client.GetAsync("/api/files"); 
         
         listRes.StatusCode.Should().Be(HttpStatusCode.OK);

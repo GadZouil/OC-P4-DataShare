@@ -22,14 +22,12 @@ builder.Services.AddCors(options =>
     });
 });
 
-// --- CORRECTION CRITIQUE ---
 // On charge PostgreSQL uniquement si on n'est PAS en test.
 if (!builder.Environment.IsEnvironment("Testing"))
 {
     var conn = builder.Configuration.GetConnectionString("Default");
     builder.Services.AddDbContext<DataShareDbContext>(o => o.UseNpgsql(conn)); // --> injection de dépendance
 }
-// ---------------------------
 
 builder.Services
     .AddSingleton<IFileStorage, LocalFileStorage>()

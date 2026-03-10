@@ -15,7 +15,7 @@ public class LocalFileStorage : IFileStorage
     public async Task<string> SaveAsync(Stream content, string originalFileName, CancellationToken ct)
     {
         var ext = Path.GetExtension(originalFileName);
-        if (ext.Length > 20) ext = ""; // sécurité simple
+        if (ext.Length > 20) ext = "";
 
         var stored = $"{Guid.NewGuid():N}{ext}";
         var fullPath = Path.Combine(_root, stored);

@@ -48,7 +48,6 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
                 var db = scope.ServiceProvider.GetRequiredService<DataShareDbContext>();
                 db.Database.EnsureCreated();
 
-                // On définit un GUID fixe pour le retrouver dans le TestAuthHandler
                 var testUserGuid = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
                 if (!db.Users.Any(u => u.Id == testUserGuid))

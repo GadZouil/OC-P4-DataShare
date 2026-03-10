@@ -18,14 +18,12 @@ public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        // --- MODIFICATION ---
-        // On inverse la logique : on authentifie SEULEMENT si le header Authorization est présent.
+        // on authentifie SEULEMENT si le header Authorization est présent.
         // Si le client HTTP du test n'envoie pas de header Authorization, l'utilisateur sera Anonyme.
         if (!Context.Request.Headers.ContainsKey("Authorization"))
         {
             return Task.FromResult(AuthenticateResult.NoResult());
         }
-        // --------------------
 
         var claims = new[]
         {

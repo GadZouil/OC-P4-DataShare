@@ -1,0 +1,31 @@
+Contexte : Projet Vue 3 + TS. On a déjà l’upload de fichiers et la page “Mon espace” qui liste les fichiers via /api/files/me. Le back accepte déjà des tags (string[]) à l’upload et renvoie tags: [] dans la réponse et dans /me.
+
+Objectif US08 (Front uniquement) :
+
+À l’upload, permettre d’ajouter des tags (0..N) via un champ texte simple. L’utilisateur saisit un tag puis valide (Enter) pour l’ajouter sous forme de “chips”. Il peut supprimer un tag (x).
+
+Sur la page “Mon espace” (MeView), afficher les tags de chaque fichier sous forme de chips (si tags vides, ne rien afficher).
+
+Ajouter un filtre par tag en haut de la liste : un input “Filtrer par tag…”. Le filtre est local (frontend), il filtre la liste affichée si un fichier contient un tag qui match (case-insensitive, contains).
+
+Contraintes :
+
+Ne pas modifier le back.
+
+Ne pas introduire de nouvelles libs.
+
+Garder le style cohérent avec datashare.css (chips simples, pas de design extravagant).
+
+Les tags doivent être normalisés côté UI : trim, pas de tag vide, pas de doublons (case-insensitive), longueur max 24 caractères.
+
+Fichiers à modifier uniquement :
+
+src/views/UploadView.vue
+
+src/views/MeView.vue
+
+src/styles/datashare.css
+
+(si nécessaire) src/api/files.ts pour s’assurer que tags est bien envoyé en FormData (tags multiples).
+
+Livrable : Donne-moi les modifications complètes de chaque fichier modifié.

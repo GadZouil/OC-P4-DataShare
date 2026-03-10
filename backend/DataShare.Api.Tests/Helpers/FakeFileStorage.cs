@@ -5,12 +5,10 @@ namespace DataShare.Api.Tests.Helpers;
 
 public class FakeFileStorage : IFileStorage
 {
-    // Stockage en mémoire : NomFichier -> Contenu (byte[])
     private readonly ConcurrentDictionary<string, byte[]> _memoryStorage = new();
 
     public Task<string> SaveAsync(Stream content, string originalFileName, CancellationToken ct)
     {
-        // On simule le comportement du vrai : générer un ID + extension
         var ext = Path.GetExtension(originalFileName);
         var storedName = $"{Guid.NewGuid():N}{ext}";
 
