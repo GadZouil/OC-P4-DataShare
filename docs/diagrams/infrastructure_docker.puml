@@ -1,0 +1,88 @@
+@startuml infrastructure_docker
+!theme plain
+
+skinparam backgroundColor #1a1a2e
+skinparam defaultFontColor #e2e2e2
+skinparam defaultFontSize 13
+skinparam defaultFontName "Segoe UI"
+skinparam ArrowThickness 2
+skinparam arrowColor #FF6B35
+
+skinparam node {
+    BackgroundColor #16213e
+    BorderColor #4ECDC4
+    FontColor #e2e2e2
+    BorderThickness 2
+}
+
+skinparam component {
+    BackgroundColor #0f3460
+    BorderColor #FF6B35
+    FontColor #e2e2e2
+    BorderThickness 2
+}
+
+skinparam cloud {
+    BackgroundColor #0d0d1a
+    BorderColor #FF6B35
+    FontColor #FF6B35
+}
+
+skinparam database {
+    BackgroundColor #16213e
+    BorderColor #4ECDC4
+    FontColor #e2e2e2
+}
+
+skinparam actor {
+    BackgroundColor #0d0d1a
+    BorderColor #FF6B35
+    FontColor #e2e2e2
+}
+
+skinparam note {
+    BackgroundColor #0d0d1a
+    BorderColor #555577
+    FontColor #aaaacc
+}
+
+title <color:#FF6B35><b>DataShare — Infrastructure Docker</b></color>\n<size:11>docker-compose.yml · 3 services</size>
+
+actor "Navigateur\nUtilisateur" as USER
+
+cloud "Docker Compose" {
+    node "**frontend**\nVue 3 + Nginx (alpine)\nPort exposé : <b>:80</b>" as FE {
+        component "Build Vite\n(npm run build)" as VITE
+        component "Nginx\n(fichiers statiques)" as NGINX
+    }
+
+    node "**api**\nASP.NET Core 9\nPort exposé : <b>:5000</b>" as API {
+        component "Controllers\n+ Services\n+ Identity + JWT" as CTRL
+        component "EF Core 9\n+ Npgsql" as EF
+        component "ExpiredFilesCleanupService\n(toutes les 24h)" as CLEANUP
+    }
+
+    node "**db**\nPostgreSQL 16\nPort exposé : <b>:5433</b>" as DB {
+        database "Base datashare\n(AspNetUsers + Files)" as PG
+    }
+
+    folder "**volume**\nStorage/Uploads/\n(fichiers partagés)" as VOL
+}
+
+USER --> FE : HTTP :80
+FE --> API : HTTP :5000\n<color:#FF6B35>(REST + JWT Bearer)</color>
+API --> DB : TCP :5432\n<color:#4ECDC4>(EF Core / Npgsql)</color>
+API --> VOL : <color:#FFD166>Lecture/Écriture\nfichiers (IFileStorage)</color>
+
+note bottom of DB
+  Volume Docker persistant : <b>pg_data</b>
+  Backup : pg_dump recommandé quotidiennement
+end note
+
+note right of API
+  Variables d'environnement :
+  ConnectionStrings__DefaultConnection
+  Jwt__Key · Jwt__Issuer · Jwt__Audience
+end note
+
+@enduml

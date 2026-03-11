@@ -1,0 +1,87 @@
+@startuml pipeline_middleware
+!theme plain
+
+skinparam backgroundColor #1a1a2e
+skinparam defaultFontColor #e2e2e2
+skinparam defaultFontSize 13
+skinparam defaultFontName "Segoe UI"
+skinparam ArrowThickness 2
+skinparam arrowColor #FF6B35
+
+skinparam activity {
+    BackgroundColor #16213e
+    BorderColor #FF6B35
+    FontColor #e2e2e2
+    StartColor #FF6B35
+    EndColor #FF6B35
+    BarColor #FF6B35
+    DiamondBackgroundColor #0f3460
+    DiamondBorderColor #FF6B35
+    DiamondFontColor #e2e2e2
+}
+
+skinparam note {
+    BackgroundColor #0d0d1a
+    BorderColor #555577
+    FontColor #aaaacc
+}
+
+title <color:#FF6B35><b>DataShare — Pipeline Middleware ASP.NET Core</b></color>\n<size:11>Program.cs · Ordre d'exécution des middlewares</size>
+
+|<color:#aaaacc>Requête HTTP entrante</color>|
+
+start
+
+:➤ <b>UseRouting</b>
+<i>Correspondance de la route avec un contrôleur</i>;
+
+note right
+  Identifie l'endpoint cible
+  avant d'appliquer CORS et Auth
+end note
+
+:➤ <b>UseCors</b>
+<i>Politique "dev" : AllowAnyOrigin / Method / Header</i>;
+
+note right
+  ⚠ En production : restreindre
+  au domaine frontend officiel
+end note
+
+:➤ <b>UseAuthentication</b>
+<i>Lecture et validation du token JWT Bearer</i>;
+
+note right
+  Validation : Issuer · Audience
+  Lifetime · IssuerSigningKey
+  Algorithme : HMAC-SHA256
+end note
+
+if (<b>Token JWT valide ?</b>) then (<color:#4ECDC4>Oui</color>)
+    :Identité utilisateur chargée\n(claims : sub, email);
+else (<color:#FF4D4D>Non / Absent</color>)
+    :Identité anonyme\n(contexte non authentifié);
+endif
+
+:➤ <b>UseAuthorization</b>
+<i>Vérification des attributs [Authorize]</i>;
+
+if (<b>[Authorize] requis ?</b>) then (<color:#4ECDC4>Oui</color>)
+    if (<b>Utilisateur authentifié ?</b>) then (<color:#4ECDC4>Oui</color>)
+        :Accès autorisé;
+    else (<color:#FF4D4D>Non</color>)
+        :Réponse <b>401 Unauthorized</b>;
+        stop
+    endif
+else (<color:#FFD166>Non [AllowAnonymous]</color>)
+    :Accès libre;
+endif
+
+:➤ <b>MapControllers</b>
+<i>Routage vers AuthController / FilesController / PublicFilesController</i>;
+
+:Traitement de la requête\n+ Réponse HTTP;
+
+stop
+
+@enduml
