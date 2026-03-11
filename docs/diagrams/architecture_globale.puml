@@ -1,0 +1,55 @@
+@startuml architecture_globale
+!theme plain
+
+skinparam backgroundColor #1a1a2e
+skinparam defaultFontColor #e2e2e2
+skinparam defaultFontSize 13
+skinparam defaultFontName "Segoe UI"
+skinparam ArrowThickness 2
+skinparam arrowColor #FF6B35
+
+skinparam rectangle {
+    BackgroundColor #16213e
+    BorderColor #FF6B35
+    FontColor #e2e2e2
+    RoundCorner 12
+    BorderThickness 2
+}
+
+skinparam database {
+    BackgroundColor #16213e
+    BorderColor #4ECDC4
+    FontColor #e2e2e2
+}
+
+skinparam note {
+    BackgroundColor #0d0d1a
+    BorderColor #555577
+    FontColor #aaaacc
+}
+
+title <color:#FF6B35><b>DataShare — Architecture Globale</b></color>\n<size:11>Vue 3 SPA · ASP.NET Core 9 · PostgreSQL 16</size>
+
+rectangle "**Frontend**\n──────────────\nVue 3 (Composition API)\nTypeScript · Vite 7\nPinia · Vue Router\nAxios" as FE
+
+rectangle "**API Backend**\n──────────────\nASP.NET Core 9\nAuthController\nFilesController\nPublicFilesController\n──────────────\nService Layer\nIFileStorage · Identity · JWT\n──────────────\nBackground Service\nExpiredFilesCleanupService" as API
+
+database "**PostgreSQL 16**\n(Docker)\n──────────\nAspNetUsers\nFiles" as DB
+
+rectangle "**Stockage Fichiers**\n──────────────\nDisque local\nStorage/Uploads/\n(noms GUID)" as FS
+
+FE -right-> API : <color:#FF6B35>HTTP / REST\nBearer JWT</color>
+API -right-> DB : <color:#4ECDC4>EF Core 9\nNpgsql</color>
+API -down-> FS : <color:#FFD166>IFileStorage\nSaveAsync · DeleteAsync\nOpenReadAsync</color>
+
+note bottom of API
+  Pipeline Middleware :
+  Routing → CORS → Authentication → Authorization → Controllers
+end note
+
+note right of FS
+  Nom original remplacé par GUID
+  pour prévenir le Path Traversal
+end note
+
+@enduml

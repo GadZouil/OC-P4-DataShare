@@ -14,6 +14,7 @@
 \usepackage{titlesec}
 \usepackage{enumitem}
 \usepackage{amssymb}
+\usepackage{float}
 
 \definecolor{codebg}{RGB}{245,245,245}
 \definecolor{codeframe}{RGB}{200,200,200}
@@ -72,19 +73,11 @@ DataShare adopte une architecture en \textbf{trois couches} inspir\'ee des princ
 
 Le \textbf{frontend} est une Single Page Application Vue~3 (Composition API + TypeScript) servie par Vite, qui consomme l'API REST via Axios.
 
-\begin{lstlisting}[title={Sch\'ema d'architecture}]
-+------------------+         +------------------------+         +----------------+
-|  Vue 3 SPA       |  HTTP   |  ASP.NET Core 9 API    | EF Core |  PostgreSQL 16 |
-|  (TypeScript)    | ------> |  Controllers / Services | ------> |  (Docker)      |
-|  Vite + Pinia    |         |  Identity + JWT         |         |                |
-+------------------+         +------------------------+         +----------------+
-                                       |
-                                       v
-                              +------------------+
-                              |  File Storage    |
-                              |  (Local Disk)    |
-                              +------------------+
-\end{lstlisting}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth,keepaspectratio]{diagrams/architecture_globale.drawio.png}
+  \caption{Architecture globale de DataShare --- Vue 3 SPA, API ASP.NET Core 9, PostgreSQL 16 et stockage fichiers}
+\end{figure}
 
 \subsection{Structure du projet}
 
@@ -150,6 +143,12 @@ OC-P4-DataShare/
   \item[Middleware Pipeline]
     Le pipeline HTTP est configur\'e dans \texttt{Program.cs} avec l'ordre : \texttt{UseRouting} $\rightarrow$ \texttt{UseCors} $\rightarrow$ \texttt{UseAuthentication} $\rightarrow$ \texttt{UseAuthorization} $\rightarrow$ \texttt{MapControllers}.
 \end{description}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.72\textwidth,keepaspectratio]{diagrams/pipeline_middleware.drawio.png}
+  \caption{Pipeline middleware ASP.NET Core --- ordre d'ex\'ecution et bifurcations d'autorisation}
+\end{figure}
 
 %% ====================================================================
 \section{Choix technologiques justifi\'es}
@@ -273,22 +272,11 @@ IsPasswordProtected & \texttt{bool} & Propri\'et\'e calcul\'ee (non mapp\'ee) \\
 
 \subsection{Relations}
 
-\begin{lstlisting}[title={Diagramme des relations}]
-+------------------+          +------------------+
-|     AppUser      |          |     FileItem     |
-|------------------|          |------------------|
-| Id (PK, Guid)    |<---+     | Id (PK, Guid)    |
-| UserName         |    |     | OwnerId (FK?)    |---+
-| Email            |    +-----| Owner            |
-| PasswordHash     |          | OriginalFileName |
-| ...              |          | StoredFileName   |
-+------------------+          | Token (Unique)   |
-                              | Tags (text[])    |
-     AppUser (1) -----> (N) FileItem             |
-     (relation optionnelle :  | PasswordHash     |
-      OwnerId nullable pour   | ...              |
-      les uploads anonymes)   +------------------+
-\end{lstlisting}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth,keepaspectratio]{diagrams/modele_donnees.drawio.png}
+  \caption{Mod\`ele de donn\'ees --- entit\'es \texttt{AppUser} et \texttt{FileItem}, relation 1:N avec \texttt{OwnerId} nullable}
+\end{figure}
 
 \begin{itemize}[nosep]
   \item \textbf{AppUser (1) $\rightarrow$ (N) FileItem} : un utilisateur peut poss\'eder plusieurs fichiers. La relation est optionnelle (\texttt{OwnerId} nullable) pour permettre les uploads anonymes (US07).
@@ -421,6 +409,12 @@ DELETE & \texttt{/api/files/\{id\}} & Supprimer un fichier & Oui & 204, 401, 404
 
 \textbf{Extensions interdites :} \texttt{.exe}, \texttt{.bat}, \texttt{.cmd}, \texttt{.com}, \texttt{.msi}, \texttt{.scr}, \texttt{.ps1}.
 
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth,height=0.88\textheight,keepaspectratio]{diagrams/flux_upload_partage.drawio.png}
+  \caption{Flux upload et partage --- cycle complet de l'upload authentifi\'e au t\'el\'echargement public}
+\end{figure}
+
 \subsection{Liens publics --- \texttt{/api/public/files}}
 
 \begin{longtable}{p{1.2cm} p{4.8cm} p{3cm} p{1cm} p{3.5cm}}
@@ -472,6 +466,12 @@ L'authentification utilise exclusivement des JSON Web Tokens (JWT), rendant le s
 \end{itemize}
 
 Les contr\^oleurs prot\'eg\'es utilisent l'attribut \texttt{[Authorize]} au niveau de la classe (\texttt{FilesController}). L'identit\'e de l'utilisateur est extraite du claim \texttt{NameIdentifier} pour filtrer l'acc\`es aux fichiers.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth,height=0.88\textheight,keepaspectratio]{diagrams/flux_authentification.drawio.png}
+  \caption{Flux d'authentification JWT --- inscription, connexion et appel authentifi\'e}
+\end{figure}
 
 \subsection{Hachage des mots de passe}
 
@@ -768,6 +768,12 @@ docker-compose up -d
 \end{lstlisting}
 
 Cette commande lance les trois services :
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth,keepaspectratio]{diagrams/infrastructure_docker.drawio.png}
+  \caption{Infrastructure Docker --- trois services orchestr\'es par Docker Compose}
+\end{figure}
 \begin{itemize}[nosep]
   \item \textbf{db} --- PostgreSQL 16 sur le port 5433
   \item \textbf{api} --- API ASP.NET Core sur le port 5000
