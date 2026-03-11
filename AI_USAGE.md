@@ -1,3 +1,4 @@
+# Documentation de l'utilisation de l'IA — Projet DataShare (OC P5)
 # Utilisation de l'IA dans le développement — DataShare
 
 ## 1. Posture adoptée

@@ -1,3 +1,4 @@
+# Prompt IA envoyé pour l'US08 — Tags UI & Filtering
 Contexte : Projet Vue 3 + TS. On a déjà l’upload de fichiers et la page “Mon espace” qui liste les fichiers via /api/files/me. Le back accepte déjà des tags (string[]) à l’upload et renvoie tags: [] dans la réponse et dans /me.
 
 Objectif US08 (Front uniquement) :
