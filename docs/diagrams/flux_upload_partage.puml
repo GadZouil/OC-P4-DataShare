@@ -1,0 +1,138 @@
+@startuml flux_upload_partage
+!theme plain
+
+skinparam backgroundColor #1a1a2e
+skinparam defaultFontColor #e2e2e2
+skinparam defaultFontSize 13
+skinparam defaultFontName "Segoe UI"
+skinparam sequenceArrowThickness 2
+skinparam arrowColor #FF6B35
+
+skinparam participant {
+    BackgroundColor #16213e
+    BorderColor #FF6B35
+    FontColor #e2e2e2
+    BorderThickness 2
+}
+
+skinparam actor {
+    BackgroundColor #0d0d1a
+    BorderColor #FF6B35
+    FontColor #e2e2e2
+}
+
+skinparam database {
+    BackgroundColor #16213e
+    BorderColor #4ECDC4
+    FontColor #e2e2e2
+}
+
+skinparam collections {
+    BackgroundColor #0f3460
+    BorderColor #FFD166
+    FontColor #e2e2e2
+}
+
+skinparam sequence {
+    LifeLineBorderColor #FF6B35
+    LifeLineBackgroundColor #0d0d1a
+    GroupHeaderFontColor #e2e2e2
+    GroupBorderColor #FF6B35
+    GroupBackgroundColor #0f1a2e
+    DividerBackgroundColor #0f3460
+    DividerFontColor #FF6B35
+    DividerBorderColor #FF6B35
+    BoxBackgroundColor #0d0d1a
+    BoxBorderColor #555577
+    BoxFontColor #aaaacc
+}
+
+skinparam note {
+    BackgroundColor #0d0d1a
+    BorderColor #555577
+    FontColor #aaaacc
+}
+
+title <color:#FF6B35><b>DataShare — Flux Upload & Partage de Fichier</b></color>\n<size:11>Upload authentifié · Lien public · Téléchargement</size>
+
+actor "Propriétaire\n(connecté)" as OWNER
+participant "Vue 3 SPA\n(UploadView)" as FE #16213e
+participant "FilesController\n/api/files" as FC #16213e
+participant "PublicFilesController\n/api/public/files" as PFC #16213e
+collections "IFileStorage\n(LocalFileStorage)" as FS #0f3460
+database "PostgreSQL\n(FileItem)" as DB #16213e
+actor "Destinataire\n(anonyme)" as RECV
+
+== <color:#FF6B35>Upload d'un fichier (authentifié)</color> ==
+
+OWNER -> FE : Sélectionne fichier\n<color:#aaaacc>+ tags, expiration (1–7j), mot de passe (optionnel)</color>
+FE -> FC : POST /api/files\n<color:#aaaacc>multipart/form-data · Authorization: Bearer JWT</color>
+
+FC -> FC : Validation entrées
+note right of FC
+  ✓ Extension non interdite
+    (.exe .bat .cmd .com .msi .scr .ps1)
+  ✓ Taille ≤ 1 Go
+  ✓ Expiration entre 1 et 7 jours
+  ✓ Tags : trim, dédup, max 20
+end note
+
+FC -> FS : SaveAsync(<color:#FFD166>GUID + extension</color>)
+note right of FS
+  Nom original JAMAIS utilisé
+  → prévention Path Traversal
+end note
+FS --> FC : Fichier écrit sur disque
+
+FC -> FC : Génération token de partage\n<color:#aaaacc>RandomNumberGenerator.GetBytes(32) → Base64Url</color>
+
+alt <color:#4ECDC4>Mot de passe fourni</color>
+    FC -> FC : Hash mot de passe\n<color:#aaaacc>PasswordHasher<FileItem> (PBKDF2)</color>
+end
+
+FC -> DB : INSERT FileItem\n<color:#aaaacc>(OwnerId, StoredFileName, Token, ExpiresAt, Tags, PasswordHash?)</color>
+DB --> FC : FileItem créé
+FC --> FE : <color:#4ECDC4>201 Created</color>\n<color:#aaaacc>{ id, token, expiresAt, tags, passwordRequired }</color>
+FE --> OWNER : Lien de partage affiché\n<color:#aaaacc>/download/{token}</color>
+
+== <color:#FF6B35>Accès public aux métadonnées</color> ==
+
+RECV -> FE : Ouvre le lien\n<color:#aaaacc>GET /api/public/files/{token}</color>
+FE -> PFC : GET /api/public/files/{token}
+PFC -> DB : SELECT FileItem WHERE Token = ?
+DB --> PFC : FileItem
+
+alt <color:#FF4D4D>Fichier expiré (ExpiresAt < now)</color>
+    PFC --> FE : <color:#FF4D4D>410 Gone</color>
+    FE --> RECV : Message "Lien expiré"
+else <color:#4ECDC4>Fichier valide</color>
+    PFC --> FE : <color:#4ECDC4>200 OK</color>\n<color:#aaaacc>{ originalFileName, sizeBytes, expiresAt, passwordRequired }</color>
+end
+
+== <color:#FF6B35>Téléchargement public</color> ==
+
+alt <color:#FFD166>Fichier protégé par mot de passe</color>
+    FE --> RECV : Formulaire mot de passe
+    RECV -> FE : Saisie mot de passe
+end
+
+FE -> PFC : POST /api/public/files/{token}/download\n<color:#aaaacc>{ password? } (JSON)</color>
+PFC -> DB : SELECT FileItem WHERE Token = ?
+DB --> PFC : FileItem
+
+PFC -> PFC : Vérification expiration → <color:#FF4D4D>410 Gone</color>
+
+alt <color:#FFD166>Mot de passe requis</color>
+    PFC -> PFC : Vérification hash\n<color:#aaaacc>PasswordHasher.VerifyHashedPassword()</color>
+    alt <color:#FF4D4D>Incorrect ou absent</color>
+        PFC --> FE : <color:#FF4D4D>401 Unauthorized</color>
+        FE --> RECV : Message "Mot de passe incorrect"
+    end
+end
+
+PFC -> FS : OpenReadAsync(storedFileName)
+FS --> PFC : Stream binaire
+PFC --> FE : <color:#4ECDC4>200 OK</color>\n<color:#aaaacc>Content-Type + Content-Disposition: attachment</color>
+FE --> RECV : Téléchargement déclenché
+
+@enduml
