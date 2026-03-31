@@ -85,18 +85,31 @@ Afin de garantir une expérience utilisateur fluide, les limites suivantes ont �
 | **Best Practices** | ≥ 90 |
 | **SEO** | ≥ 80 |
 
-### Résultats Lighthouse (audit du 31 mars 2026)
+### Résultats Lighthouse (audit du 31/03/2026)
 
-| Métrique | Score | Objectif | Statut |
-|----------|-------|----------|--------|
-| Performance | 96 | ≥ 90 | ✅ |
-| Accessibility | 76 | ≥ 90 | ⚠️ |
-| Best Practices | 100 | ≥ 90 | ✅ |
-| SEO | 82 | ≥ 90 | ⚠️ |
+| Catégorie | Score | Objectif | Statut |
+|-----------|-------|----------|--------|
+| **Performance** | 96 | ≥ 90 | ✅ |
+| **Accessibility** | 76 | ≥ 90 | ⚠️ En dessous de l'objectif |
+| **Best Practices** | 100 | ≥ 90 | ✅ |
+| **SEO** | 82 | ≥ 80 | ✅ |
+
+**Métriques détaillées :**
+
+| Métrique | Valeur | Budget |
+|----------|--------|--------|
+| FCP (First Contentful Paint) | 2.1 s | < 1.5 s ⚠️ |
+| LCP (Largest Contentful Paint) | 2.3 s | < 2.5 s ✅ |
+| Total Blocking Time | 0 ms | < 200 ms ✅ |
+| CLS (Cumulative Layout Shift) | 0.001 | < 0.1 ✅ |
+| Speed Index | 2.1 s | — |
+
+**Analyse :**
+- Le score Accessibility (76) est en dessous de l'objectif de 90. Les améliorations prioritaires concernent les contrastes de couleurs et les attributs ARIA manquants.
+- Le FCP (2.1s) dépasse légèrement le budget de 1.5s — optimisable via le préchargement des fonts et la réduction du CSS bloquant.
+- Le score Performance (96) et Best Practices (100) sont excellents.
 
 ![Scores Lighthouse](docs/lighthouse-scores.png)
-
-> Audit réalisé avec Lighthouse CLI v12.8.2 sur Chrome headless.
 
 ---
 

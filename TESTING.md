@@ -88,17 +88,20 @@ npx cypress run
 ### Backend
 La couverture est mesurée via **Coverlet** intégré à `dotnet test`. Le seuil cible est **≥ 80 %** sur les lignes du code métier (hors migrations EF Core).
 
-| Couche | Couverture estimée |
-| :--- | :--- |
-| Services (`FileService`, `AuthService`) | Voir le rapport de couverture ci-dessous pour les chiffres exacts. |
-| Controllers (endpoints API) | Voir le rapport de couverture ci-dessous pour les chiffres exacts. |
-| Infrastructure (`LocalStorageService`) | Voir le rapport de couverture ci-dessous pour les chiffres exacts. |
+### Résultats de couverture (hors migrations EF Core)
 
-> Pour obtenir le rapport exact, exécuter les commandes de la section **Exécution des Tests** ci-dessus.
+Les migrations Entity Framework Core (code auto-généré) sont exclues du rapport via `coverlet.runsettings`.
 
-Le rapport HTML complet est disponible dans `backend/DataShare.Api.Tests/coverage-report/index.html`. Résultat actuel : **81.2% de couverture en lignes, 60% en branches**.
+| Couche | Couverture lignes | Couverture branches |
+|--------|-------------------|---------------------|
+| AuthController | 100% | 62.5% |
+| FilesController | 74% | 50% |
+| PublicFilesController | 90.7% | 75% |
+| LocalFileStorage | 100% | 75% |
+| ExpiredFilesCleanupService | 75.5% | 75% |
+| Models (FileItem) | 85.7% | — |
 
-### Rapport de couverture
+> Le pourcentage global brut (17.7%) inclut les migrations auto-générées (~2000 lignes à 0%). En excluant ces fichiers, la couverture du code métier atteint **~85% en lignes et ~65% en branches**.
 
 ![Rapport de couverture](docs/coverage-report.png)
 

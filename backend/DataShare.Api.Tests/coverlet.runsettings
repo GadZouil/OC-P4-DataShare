@@ -5,7 +5,8 @@
       <DataCollector friendlyName="XPlat Code Coverage">
         <Configuration>
           <Format>cobertura</Format>
-          <Exclude>[DataShare.Api]DataShare.Api.Migrations.*</Exclude>
+          <Exclude>[DataShare.Api]DataShare.Api.Migrations.*,[DataShare.Api]DataShare.Api.Data.*,[DataShare.Api]Program</Exclude>
+          <ExcludeByFile>**/Migrations/**</ExcludeByFile>
         </Configuration>
       </DataCollector>
     </DataCollectors>
