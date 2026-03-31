@@ -26,12 +26,12 @@ Ces seuils servent de référence pour valider chaque mise en production et orie
 *   **Outil :** [k6](https://k6.io/)
 *   **Environnement :** Local (Docker)
 *   **Scénario :** 20 utilisateurs virtuels (VUs) uploadant simultanément des fichiers pendant 30 secondes.
-*   **Script :** `upload-test.js` (Auth JWT + POST /api/Files)
+*   **Script :** `perf/k6-upload-test.js` (Auth JWT + POST /api/Files)
 
 ### Résultats du Test de Charge
 
 > **Date du test :** 17 Février 2026
-> **Commande :** `k6 run upload-test.js`
+> **Commande :** `k6 run perf/k6-upload-test.js`
 
 | Métrique | Valeur Obtenue | Objectif | Statut |
 | :--- | :--- | :--- | :--- |
@@ -85,7 +85,18 @@ Afin de garantir une expérience utilisateur fluide, les limites suivantes ont �
 | **Best Practices** | ≥ 90 |
 | **SEO** | ≥ 80 |
 
-> Les scores réels doivent être ajoutés ici après chaque audit Lighthouse en production.
+### Résultats Lighthouse (audit du 31 mars 2026)
+
+| Métrique | Score | Objectif | Statut |
+|----------|-------|----------|--------|
+| Performance | 96 | ≥ 90 | ✅ |
+| Accessibility | 76 | ≥ 90 | ⚠️ |
+| Best Practices | 100 | ≥ 90 | ✅ |
+| SEO | 82 | ≥ 90 | ⚠️ |
+
+![Scores Lighthouse](docs/lighthouse-scores.png)
+
+> Audit réalisé avec Lighthouse CLI v12.8.2 sur Chrome headless.
 
 ---
 

@@ -1,4 +1,4 @@
-﻿# Documentation des Tests - DataShare API
+# Documentation des Tests - DataShare API
 
 Ce document détaille la stratégie de test, le plan de validation et les résultats de la couverture de code pour l'API Backend de DataShare.
 
@@ -90,13 +90,23 @@ La couverture est mesurée via **Coverlet** intégré à `dotnet test`. Le seuil
 
 | Couche | Couverture estimée |
 | :--- | :--- |
-| Services (`FileService`, `AuthService`) | ~85 % |
-| Controllers (endpoints API) | ~80 % |
-| Infrastructure (`LocalStorageService`) | ~75 % |
+| Services (`FileService`, `AuthService`) | Voir le rapport de couverture ci-dessous pour les chiffres exacts. |
+| Controllers (endpoints API) | Voir le rapport de couverture ci-dessous pour les chiffres exacts. |
+| Infrastructure (`LocalStorageService`) | Voir le rapport de couverture ci-dessous pour les chiffres exacts. |
 
 > Pour obtenir le rapport exact, exécuter les commandes de la section **Exécution des Tests** ci-dessus.
 
 Le rapport HTML complet est disponible dans `backend/DataShare.Api.Tests/coverage-report/index.html`. Résultat actuel : **81.2% de couverture en lignes, 60% en branches**.
+
+### Rapport de couverture
+
+![Rapport de couverture](docs/coverage-report.png)
+
+> Rapport généré avec Coverlet + ReportGenerator. Le rapport HTML complet est disponible localement via :
+> ```bash
+> dotnet test --collect:"XPlat Code Coverage" --results-directory ./TestResults
+> reportgenerator -reports:./TestResults/**/coverage.cobertura.xml -targetdir:./TestResults/CoverageReport -reporttypes:Html
+> ```
 
 ### Frontend
 Le frontend Vue 3 n'est pas soumis à une mesure de couverture unitaire. La couverture fonctionnelle est assurée par les **tests E2E Cypress** qui couvrent les flux critiques (upload, suppression, téléchargement, tags, protection par mot de passe).

@@ -82,7 +82,49 @@ Si une vulnérabilité est découverte :
 
 ---
 
-## 8. Améliorations Futures (Roadmap Sécurité)
+## 8. Audit des dépendances
+
+### Backend (.NET / NuGet)
+
+Commande : `dotnet list package --vulnerable`
+
+**Résultat : aucune vulnérabilité détectée.**
+
+Les packages NuGet utilisés (Entity Framework Core 9, ASP.NET Core Identity, Npgsql) sont tous à jour et sans CVE connue.
+
+### Frontend (npm)
+
+Commande : `npm audit` (exécutée le 31/03/2026)
+
+**Résultat : 2 vulnérabilités détectées (1 low, 1 high)**
+
+| Package | Sévérité | Description | Corrigible |
+|---------|----------|-------------|------------|
+| `qs` 6.7.0–6.14.1 | Low | Bypass arrayLimit en parsing virgule (DoS) | Oui (`npm audit fix`) |
+| `systeminformation` ≤5.30.7 | High | Command Injection via `locate` et `wifi.js` | Oui (`npm audit fix`) |
+
+### Analyse et décisions
+
+- **`qs`** : dépendance transitive (utilisée par Cypress, pas par l'app en production). Risque réel : **nul** en contexte DataShare car qs n'est pas exposé côté serveur. Correctif appliqué via `npm audit fix`.
+- **`systeminformation`** : dépendance de Cypress (outil de test uniquement), **jamais déployée en production**. Risque réel : **nul**. Correctif appliqué via `npm audit fix`.
+- **Backend .NET** : zéro vulnérabilité. L'utilisation d'Entity Framework Core comme ORM exclusif élimine les risques d'injection SQL.
+
+> Les deux vulnérabilités npm concernent des dépendances de développement/test (Cypress) et n'affectent pas l'application déployée.
+
+### Correction appliquée
+
+Les deux vulnérabilités ont été corrigées via `npm audit fix` le 31 mars 2026.
+```
+$ npm audit fix
+changed 2 packages, and audited 176 packages in 1s
+found 0 vulnerabilities
+```
+
+**Statut actuel : 0 vulnérabilité côté frontend, 0 vulnérabilité côté backend.**
+
+---
+
+## 9. Améliorations Futures (Roadmap Sécurité)
 
 *   **Rate Limiting :** Implémenter une limitation du nombre de requêtes par IP (ex : middleware `AspNetCoreRateLimit`) pour prévenir les attaques par force brute sur les endpoints d'authentification.
 *   **Refresh Tokens :** Introduire un système de refresh tokens pour permettre des access tokens JWT de courte durée de vie, réduisant la fenêtre d'exposition en cas de vol de token.

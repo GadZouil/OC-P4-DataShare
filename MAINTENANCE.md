@@ -51,7 +51,7 @@ docker exec -i oc-p4-datashare-postgres psql -U datashare datashare < backup_202
 ```bash
 docker-compose down -v   # Supprime le volume
 docker-compose up -d     # Recrée la base vierge
-cd backend/DataShareAPI && dotnet ef database update  # Applique les migrations
+cd backend/DataShare.Api && dotnet ef database update  # Applique les migrations
 ```
 
 > Fréquence recommandée : backup quotidien en production, hebdomadaire en staging.
@@ -61,7 +61,7 @@ cd backend/DataShareAPI && dotnet ef database update  # Applique les migrations
 ### Backend (.NET / NuGet)
 
 ```bash
-cd backend/DataShareAPI
+cd backend/DataShare.Api
 
 # Lister les packages obsolètes
 dotnet list package --outdated
@@ -111,14 +111,14 @@ docker exec oc-p4-datashare-postgres psql -U datashare -c "SELECT version();"
 1. Reproduire le bug (idéalement écrire un test qui échoue)
 2. Isoler : backend ? frontend ? base de données ?
 3. Corriger sur une branche dédiée (`fix/description-courte`)
-4. Vérifier : lancer `dotnet test` + `npx cypress run`
+4. Vérifier : lancer `cd backend && dotnet test` + `cd frontend/datashare-front && npx cypress run`
 5. Merger après revue et tests verts
 
 ### Logs utiles pour le diagnostic
 
 ```bash
 # Logs backend .NET (en mode développement)
-cd backend/DataShareAPI && dotnet run
+cd backend/DataShare.Api && dotnet run
 # Les logs s'affichent dans la console (Serilog/console logger)
 
 # Logs PostgreSQL
@@ -141,7 +141,7 @@ Les fichiers ont une durée de vie maximale de 7 jours (US10). Le nettoyage peut
 
 ```bash
 # Vérifier l'espace disque utilisé par les uploads
-du -sh backend/DataShareAPI/Uploads/
+du -sh backend/DataShare.Api/Storage/Uploads/
 ```
 
 ## 6. Checklist de mise en production

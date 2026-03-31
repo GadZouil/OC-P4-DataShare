@@ -7,7 +7,7 @@ Application full stack de partage de fichiers sécurisé, développée dans le c
 | Couche | Technologie |
 |--------|------------|
 | Frontend | Vue 3 (Composition API) + TypeScript + Vite |
-| Backend | ASP.NET Core 8 (C#) — API REST |
+| Backend | ASP.NET Core 9 (C#) — API REST |
 | Base de données | PostgreSQL 16 (Docker) |
 | Authentification | JWT Bearer |
 | Tests backend | xUnit + Moq |
@@ -22,38 +22,48 @@ Application full stack de partage de fichiers sécurisé, développée dans le c
 
 ### Lancement
 
+**Option A — Tout en Docker (recommandé)**
+
 ```bash
-# 1. Base de données
 docker-compose up -d
+```
+
+L'application est accessible sur http://localhost (port 80).
+
+**Option B — Développement local (base de données en Docker, backend et frontend en local)**
+
+```bash
+# 1. Base de données uniquement
+docker-compose up -d db
 
 # 2. Backend
-cd backend/DataShareAPI
+cd backend/DataShare.Api
 dotnet ef database update
 dotnet run
+# API disponible sur http://localhost:5000
 
 # 3. Frontend
 cd frontend/datashare-front
 npm install
 npm run dev
+# Frontend disponible sur http://localhost:5173
 ```
-
-L'application est accessible sur http://localhost:5173.
 
 ## Structure du projet
 
 ```
 DataShare/
-├── backend/DataShareAPI/     # API REST .NET 8
+├── backend/DataShare.Api/    # API REST .NET 9
 │   ├── Controllers/
 │   ├── Services/
 │   ├── Models/
-│   └── Tests/
+│   └── DataShare.Api.Tests/
 ├── frontend/datashare-front/ # SPA Vue 3
 │   ├── src/views/
 │   ├── src/api/
 │   ├── src/stores/
 │   └── cypress/
-├── docker-compose.yml        # PostgreSQL
+├── docker-compose.yml        # Base de données + API + Frontend (Docker)
 ├── AI_USAGE.md              # Documentation usage IA
 ├── TESTING.md               # Plan et résultats de tests
 ├── SECURITY.md              # Audit de sécurité
@@ -84,7 +94,7 @@ DataShare/
 
 ```bash
 # Tests unitaires + intégration backend
-cd backend/DataShareAPI && dotnet test
+cd backend && dotnet test
 
 # Tests e2e frontend
 cd frontend/datashare-front && npx cypress run
