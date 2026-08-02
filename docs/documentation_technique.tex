@@ -4,7 +4,7 @@
 \usepackage[french]{babel}
 \usepackage{geometry}
 \geometry{margin=2.5cm}
-\usepackage{hyperref}
+\usepackage[hidelinks]{hyperref}
 \usepackage{graphicx}
 \usepackage{listings}
 \usepackage{xcolor}
@@ -38,14 +38,14 @@
 \fancyhf{}
 \fancyhead[L]{DataShare --- Documentation Technique}
 \fancyhead[R]{\thepage}
-\fancyfoot[C]{OpenClassrooms --- Projet 5}
+\fancyfoot[C]{OpenClassrooms --- Projet 4}
 
 \title{
   \vspace{-2cm}
   \textbf{DataShare} \\
   \Large Documentation Technique Compl\`ete \\
   \vspace{0.5cm}
-  \large Projet 5 --- OpenClassrooms \\
+  \large Projet 4 --- OpenClassrooms \\
   D\'eveloppeur Full Stack .NET / Angular
 }
 \author{Ethan}
@@ -98,7 +98,7 @@ OC-P4-DataShare/
       IntegrationTests/   # 10 fichiers de tests d'integration
       UnitTests/          # ExpiredFilesCleanupServiceTests
     DataShare.sln
-    Dockerfile            # Build .NET 8 multi-stage
+    Dockerfile            # Build .NET 9 multi-stage
   frontend/
     datashare-front/
       src/
@@ -591,11 +591,12 @@ La couverture est mesur\'ee via Coverlet int\'egr\'e \`a \texttt{dotnet test}. L
 \textbf{M\'etrique} & \textbf{R\'esultat} & \textbf{Objectif} \\
 \midrule
 \endhead
-Couverture en lignes & \textbf{81,2\%} & $\geq$ 80\% \\
-Couverture en branches & \textbf{60\%} & $\geq$ 50\% \\
-Couche Services & $\sim$85\% & -- \\
-Couche Controllers & $\sim$80\% & -- \\
-Couche Infrastructure & $\sim$75\% & -- \\
+Couverture en lignes & \textbf{83,2\%} & $\geq$ 80\% \\
+Couverture en branches & \textbf{62\%} & $\geq$ 50\% \\
+Couche Controllers (Auth) & 100\% & -- \\
+Couche Controllers (Files) & 74\% & -- \\
+Couche Controllers (Public) & 90,7\% & -- \\
+Couche Services & 75,5--100\% & -- \\
 \bottomrule
 \end{longtable}
 
@@ -658,6 +659,24 @@ Score Accessibility & $\geq$ 90 & -- \\
 \end{longtable}
 
 Optimisations mises en place : bundling Vite (tree-shaking), lazy-loading des routes Vue Router, CSS minifi\'e en production.
+
+\subsubsection{R\'esultats Lighthouse (audit du 31/03/2026)}
+
+\begin{longtable}{p{4cm} p{2cm} p{2cm} p{2cm}}
+\toprule
+\textbf{Cat\'egorie} & \textbf{Score} & \textbf{Objectif} & \textbf{Statut} \\
+\midrule
+Performance & 96 & $\geq$ 90 & Pass\'e \\
+Accessibility & 76 & $\geq$ 90 & \`A am\'eliorer \\
+Best Practices & 100 & $\geq$ 90 & Pass\'e \\
+SEO & 82 & $\geq$ 80 & Pass\'e \\
+\bottomrule
+\end{longtable}
+
+\textbf{M\'etriques d\'etaill\'ees :} FCP 2,1\,s, LCP 2,3\,s, TBT 0\,ms, CLS 0,001, Speed Index 2,1\,s.
+
+\textbf{Analyse :} Le score Accessibility (76) est en dessous de l'objectif --- les am\'eliorations prioritaires concernent les contrastes et attributs ARIA. Le FCP (2,1\,s) d\'epasse l\'eg\`erement le budget de 1,5\,s, optimisable via le pr\'echargement des fonts.
+
 
 \subsection{Maintenance}
 
@@ -789,8 +808,8 @@ Le fichier \texttt{.env.example} fournit le template des variables \`a configure
 \textbf{Variable} & \textbf{Exemple} & \textbf{Description} \\
 \midrule
 \endhead
-\texttt{DB\_PASSWORD} & (secret) & Mot de passe PostgreSQL \\
-\texttt{JWT\_SECRET} & (32+ chars) & Cl\'e de signature JWT \\
+\texttt{POSTGRES\_PASSWORD} & (secret) & Mot de passe PostgreSQL \\
+\texttt{Jwt\_\_Key} & (32+ chars) & Cl\'e de signature JWT \\
 \bottomrule
 \end{longtable}
 
@@ -813,7 +832,7 @@ En Docker Compose, ces variables sont surcharg\'ees via la section \texttt{envir
 \begin{lstlisting}
 api:
   environment:
-    ConnectionStrings__DefaultConnection: "Host=db;Port=5432;..."
+    ConnectionStrings__Default: "Host=db;Port=5432;..."
     Jwt__Key: "change-me-in-production-secret-key-32chars"
     Jwt__Issuer: "DataShareApi"
     Jwt__Audience: "DataShareClient"

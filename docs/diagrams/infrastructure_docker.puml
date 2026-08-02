@@ -75,13 +75,13 @@ API --> DB : TCP :5432\n<color:#4ECDC4>(EF Core / Npgsql)</color>
 API --> VOL : <color:#FFD166>Lecture/Écriture\nfichiers (IFileStorage)</color>
 
 note bottom of DB
-  Volume Docker persistant : <b>pg_data</b>
+  Volume Docker persistant : <b>datashare_pg</b>
   Backup : pg_dump recommandé quotidiennement
 end note
 
 note right of API
   Variables d'environnement :
-  ConnectionStrings__DefaultConnection
+  ConnectionStrings__Default
   Jwt__Key · Jwt__Issuer · Jwt__Audience
 end note
 
