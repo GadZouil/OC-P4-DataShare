@@ -106,6 +106,18 @@ docker exec oc-p4-datashare-postgres psql -U datashare -c "SELECT version();"
 
 > Fréquence : suivre les releases PostgreSQL, upgrader pour les correctifs de sécurité.
 
+### Risques liés aux mises à jour et parades
+
+| Type de mise à jour | Risque principal | Parade |
+|---|---|---|
+| Patch (`9.0.1` → `9.0.2`) | Très faible — correctifs de bugs/sécurité | Lancer `dotnet test` / `npm run build` après mise à jour |
+| Mineure (`9.0` → `9.1`) | Faible — nouvelles API, dépréciations | Lire le changelog, tests complets (unitaires + e2e) |
+| Majeure (`.NET 9` → `10`, `Vite 7` → `8`) | Élevé — breaking changes (API supprimées, typages durcis) | Branche dédiée, lecture du guide de migration, tests complets, retour arrière possible via Git |
+| `npm audit fix --force` | Élevé — peut installer des versions majeures non testées | Ne jamais utiliser `--force` sans revue ; préférer des mises à jour ciblées |
+| Image Docker (PostgreSQL) | Migration de données entre versions majeures | Backup avant upgrade (`scripts/db-backup.ps1`), restore testé |
+
+> Cas concret rencontré (08/2026) : la mise à jour de sécurité d'`axios` a durci le typage des en-têtes HTTP et cassé la compilation TypeScript. Détection immédiate par le type-check du build, correction en une ligne. C'est exactement le rôle du filet de sécurité tests + typage.
+
 ## 4. Procédure de correction de bugs
 
 1. Reproduire le bug (idéalement écrire un test qui échoue)

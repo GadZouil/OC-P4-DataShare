@@ -10,14 +10,20 @@ Nous utilisons l'analyseur de vulnérabilités natif de .NET pour scanner la cha
 *   **Cible :** Packages NuGet (Directs et Transitifs)
 *   **Base de données :** GitHub Advisory Database & NuGet.org
 *   **Fréquence :** À chaque build majeur et avant mise en production.
-*   **Date du dernier audit :** 10/02/2026
+*   **Date du dernier audit :** 02/08/2026
 
 ### Résultat de l'analyse
 > Commande : `dotnet list package --vulnerable --include-transitive`
 
-✅ **Statut : PAS DE VULNÉRABILITÉ DÉTECTÉE**
+✅ **Statut : PAS DE VULNÉRABILITÉ DÉTECTÉE** (après correctif du 02/08/2026)
 
-Le projet est sain. Aucun package obsolète critique, haut ou modéré n'a été détecté à ce jour.
+L'audit du 02/08/2026 avait révélé **1 vulnérabilité de gravité élevée** :
+
+| Package | Version | CVE | Description | Correction |
+|---------|---------|-----|-------------|------------|
+| `Microsoft.OpenApi` | 2.3.12 | [CVE-2026-49451](https://github.com/advisories/GHSA-v5pm-xwqc-g5wc) | Stack overflow (DoS) lors du parsing d'un document OpenAPI contenant une référence de schéma circulaire | Mise à jour vers **2.7.5** (version patchée) |
+
+**Analyse du risque réel :** faible en contexte DataShare — la bibliothèque n'est utilisée que pour *générer* la documentation Swagger, pas pour parser des documents OpenAPI fournis par des tiers. Le correctif a néanmoins été appliqué immédiatement (mise à jour mineure sans rupture, suite de tests verte après mise à jour).
 
 ---
 
@@ -88,9 +94,9 @@ Si une vulnérabilité est découverte :
 
 Commande : `dotnet list package --vulnerable`
 
-**Résultat : aucune vulnérabilité détectée.**
+**Résultat : aucune vulnérabilité détectée** (après mise à jour de `Microsoft.OpenApi` 2.3.12 → 2.7.5 le 02/08/2026, voir section 1).
 
-Les packages NuGet utilisés (Entity Framework Core 9, ASP.NET Core Identity, Npgsql) sont tous à jour et sans CVE connue.
+Les packages NuGet utilisés (Entity Framework Core 9, ASP.NET Core Identity, Npgsql) sont à jour et sans CVE connue.
 
 ### Frontend (npm)
 
@@ -120,7 +126,24 @@ changed 2 packages, and audited 176 packages in 1s
 found 0 vulnerabilities
 ```
 
-**Statut actuel : 0 vulnérabilité côté frontend, 0 vulnérabilité côté backend.**
+### Ré-audit du 02/08/2026
+
+De nouveaux avis de sécurité ayant été publiés depuis mars, un ré-audit complet a été effectué :
+
+**Frontend (`npm audit`) : 16 vulnérabilités détectées** (1 critique, 12 élevées, 2 modérées, 1 faible), toutes sur des dépendances transitives ou de développement (`axios`, `vite`, `rollup`, `postcss`, `eslint`, etc.).
+
+Corrections appliquées :
+
+1. **Suppression de `react-router-dom`** — dépendance morte (aucun import dans le code source, le routing est assuré par `vue-router`), probablement ajoutée par erreur en début de projet. Sa suppression élimine à elle seule 14 avis de sécurité et allège l'arbre de dépendances.
+2. **`npm audit fix`** — mise à jour des dépendances restantes vers les versions patchées (dont `axios` 1.17+). La mise à jour d'axios a durci le typage des en-têtes de réponse ; une correction TypeScript mineure a été apportée dans `src/api/files.ts` (conversion explicite du `content-type` en chaîne).
+3. **Vérification de non-régression** — `npm run build` (type-check inclus) passe, l'application fonctionne à l'identique.
+
+```
+$ npm audit
+found 0 vulnerabilities
+```
+
+**Statut actuel (02/08/2026) : 0 vulnérabilité côté frontend, 0 vulnérabilité côté backend.**
 
 ---
 

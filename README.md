@@ -16,8 +16,8 @@ Application full stack de partage de fichiers sécurisé, développée dans le c
 ## Installation rapide
 
 ### Prérequis
-- .NET 8 SDK
-- Node.js 18+
+- .NET 9 SDK (ou SDK plus récent avec `DOTNET_ROLL_FORWARD=LatestMajor`)
+- Node.js 20+
 - Docker & Docker Compose
 
 ### Lancement
@@ -25,22 +25,29 @@ Application full stack de partage de fichiers sécurisé, développée dans le c
 **Option A — Tout en Docker (recommandé)**
 
 ```bash
-docker-compose up -d
+docker compose up -d --build
+# ou via le script de déploiement :
+./scripts/deploy.sh        # Linux / macOS
+.\scripts\deploy.ps1       # Windows
 ```
 
-L'application est accessible sur http://localhost (port 80).
+- Frontend : http://localhost (port 80)
+- API : http://localhost:5000 (santé : `GET /api/health`)
+- PostgreSQL : port hôte 5433
+
+Les migrations EF Core sont appliquées automatiquement au démarrage de l'API : aucune commande BDD à exécuter.
 
 **Option B — Développement local (base de données en Docker, backend et frontend en local)**
 
 ```bash
 # 1. Base de données uniquement
-docker-compose up -d db
+docker compose up -d db
 
-# 2. Backend
+# 2. Backend — configurer une seule fois la chaîne de connexion (user-secrets)
 cd backend/DataShare.Api
-dotnet ef database update
+dotnet user-secrets set "ConnectionStrings:Default" "Host=127.0.0.1;Port=5433;Database=datashare;Username=datashare;Password=datashare"
 dotnet run
-# API disponible sur http://localhost:5000
+# API disponible sur http://localhost:5180 (Swagger : /swagger)
 
 # 3. Frontend
 cd frontend/datashare-front
@@ -48,6 +55,8 @@ npm install
 npm run dev
 # Frontend disponible sur http://localhost:5173
 ```
+
+> Les migrations sont appliquées automatiquement au démarrage (`dotnet ef database update` n'est pas nécessaire).
 
 ## Structure du projet
 
@@ -63,6 +72,9 @@ DataShare/
 │   ├── src/api/
 │   ├── src/stores/
 │   └── cypress/
+├── docs/                     # Documentation technique, OpenAPI, diagrammes
+├── scripts/                  # Scripts de déploiement et de gestion BDD
+├── perf/                     # Script de test de charge k6
 ├── docker-compose.yml        # Base de données + API + Frontend (Docker)
 ├── AI_USAGE.md              # Documentation usage IA
 ├── TESTING.md               # Plan et résultats de tests
