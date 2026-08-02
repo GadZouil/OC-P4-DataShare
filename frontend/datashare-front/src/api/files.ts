@@ -106,7 +106,7 @@ export async function downloadFile(token: string, password?: string): Promise<vo
     const safeName = decodeURIComponent(raw);
 
     const blob = new Blob([res.data], {
-      type: res.headers?.["content-type"] || "application/octet-stream",
+      type: String(res.headers?.["content-type"] || "application/octet-stream"),
     });
     const url = URL.createObjectURL(blob);
 
