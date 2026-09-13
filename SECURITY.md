@@ -39,7 +39,7 @@ Ce document décrit les mécanismes de sécurité **réellement implémentés** 
 | Risque | Parade | Fichier |
 |---|---|---|
 | Path traversal (`../../etc/passwd`) | Le nom d'origine n'est **jamais** utilisé sur disque : le fichier est renommé `{GUID}{extension}` ; l'extension est tronquée si > 20 caractères | `LocalFileStorage.SaveAsync` |
-| Diffusion d'exécutables | **Liste noire** d'extensions refusées à l'upload : `.exe .bat .cmd .com .msi .scr .ps1` → `400 Forbidden file type.` | `FilesController.IsForbiddenFile` |
+| Diffusion d'exécutables | **Liste noire** d'extensions refusées à l'upload, authentifié comme anonyme : `.exe .bat .cmd .com .msi .scr .ps1` → `400 Forbidden file type.` | `FilesController.IsForbiddenFile` (réutilisé par `PublicFilesController`) |
 | Saturation disque (DoS) | Taille max **1 Go** par fichier (`[RequestSizeLimit]`, `MultipartBodyLengthLimit`, `client_max_body_size` nginx) | `Program.cs`, `nginx.conf` |
 | Conservation illimitée | Expiration obligatoire (1 à 7 jours) ; purge quotidienne disque + base par `ExpiredFilesCleanupService` ; liens expirés → `410 Gone` | `Services/` |
 | Stockage hors de la base | Seules les métadonnées sont en PostgreSQL ; le contenu est sur disque dans `Storage/Uploads` (volume Docker) | `LocalFileStorage` |

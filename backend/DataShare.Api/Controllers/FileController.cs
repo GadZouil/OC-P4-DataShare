@@ -43,7 +43,7 @@ public class FilesController : ControllerBase
         ".exe", ".bat", ".cmd", ".com", ".msi", ".scr", ".ps1"
     };
 
-    private static bool IsForbiddenFile(string fileName)
+    internal static bool IsForbiddenFile(string fileName)
     {
         var ext = Path.GetExtension(fileName);
         return !string.IsNullOrWhiteSpace(ext) && ForbiddenExt.Contains(ext);

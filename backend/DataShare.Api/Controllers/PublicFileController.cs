@@ -112,6 +112,10 @@ public class PublicFilesController : ControllerBase
         if (req.ExpiresInDays is < 1 or > 7)
             return BadRequest("ExpiresInDays must be between 1 and 7.");
 
+        // Même liste noire d'extensions que l'upload authentifié (SECURITY.md, openapi.yaml)
+        if (FilesController.IsForbiddenFile(req.File.FileName))
+            return BadRequest("Forbidden file type.");
+
         if (!string.IsNullOrWhiteSpace(req.Password) && req.Password.Trim().Length < 6)
             return BadRequest("Password must be at least 6 characters.");
 
