@@ -52,6 +52,42 @@ public class AuthApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
+
+    [Fact]
+    public async Task Connexion_Email_Inconnu_Renvoie_401_Sans_Distinction()
+    {
+        var response = await _client.PostAsJsonAsync("/api/auth/login",
+            new { Email = $"unknown_{Guid.NewGuid():N}@test.com", Password = "P@ssword123!" });
+
+        // Même réponse qu'un mauvais mot de passe : pas d'énumération de comptes
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Inscription_Mot_De_Passe_Trop_Court_Renvoie_400()
+    {
+        var response = await _client.PostAsJsonAsync("/api/auth/register",
+            new { Email = $"short_{Guid.NewGuid():N}@test.com", Password = "abc1234" }); // 7 caractères
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().Contain("PasswordTooShort");
+    }
+
+    [Fact]
+    public async Task Inscription_Email_Deja_Utilise_Renvoie_400()
+    {
+        var email = $"dup_{Guid.NewGuid():N}@test.com";
+        var first = await _client.PostAsJsonAsync("/api/auth/register", new { Email = email, Password = "P@ssword123!" });
+        first.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var second = await _client.PostAsJsonAsync("/api/auth/register", new { Email = email, Password = "P@ssword123!" });
+
+        second.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var body = await second.Content.ReadAsStringAsync();
+        body.Should().Contain("Duplicate");
+    }
 }
 
 public class LoginResponse
