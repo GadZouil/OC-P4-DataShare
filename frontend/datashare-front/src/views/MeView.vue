@@ -109,7 +109,7 @@
 
             <div class="ds-me-row-right">
               <div v-if="isExpired(f)" class="ds-me-expired-note">
-                Ce fichier à expiré, il n’est plus stocké chez nous
+                Ce fichier a expiré, il n’est plus stocké chez nous
               </div>
 
               <template v-else>
@@ -188,20 +188,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import api from "../services/api";
+import { listMyFiles, deleteMyFile, type MyFileItem } from "../api/files";
 import { getUsername, logout } from "../api/auth";
 
-type MeFile = {
-  id: string;
-  originalFileName: string;
-  sizeBytes: number;
-  contentType: string;
-  createdAt: string;
-  expiresAt: string;
-  token: string;
-  passwordRequired: boolean;
-  tags?: string[];
-};
+type MeFile = MyFileItem;
 
 const router = useRouter();
 
@@ -266,27 +256,30 @@ async function loadFiles() {
   error.value = null;
 
   try {
-    const res = await api.get("/files/me");
-    files.value = (res.data as MeFile[]) ?? [];
-  } catch (e: any) {
-    const status = e?.response?.status;
-    if (status === 401) {
-      await router.push("/login");
-      return;
-    }
-    error.value = e?.response?.data?.message || e?.message || "Impossible de charger tes fichiers.";
+    // "all" : les onglets Tous / Actifs / Expiré filtrent ensuite côté client
+    files.value = await listMyFiles("all");
+  } catch (e: unknown) {
+    // Un 401 (session expirée) est géré par l'intercepteur API (redirection /login)
+    error.value = (e as Error)?.message || "Impossible de charger tes fichiers.";
   } finally {
     loading.value = false;
   }
 }
 
 async function onDelete(f: MeFile) {
+  openMenuId.value = null;
+
+  const confirmed = window.confirm(
+    `Supprimer « ${f.originalFileName} » ?\nLe lien de partage ne fonctionnera plus.`
+  );
+  if (!confirmed) return;
+
+  error.value = null;
   try {
-    await api.delete(`/files/${f.id}`);
+    await deleteMyFile(f.id);
     files.value = files.value.filter((x) => x.id !== f.id);
-    openMenuId.value = null;
-  } catch (e: any) {
-    error.value = e?.response?.data?.message || e?.message || "Suppression impossible.";
+  } catch (e: unknown) {
+    error.value = (e as Error)?.message || "Suppression impossible.";
   }
 }
 

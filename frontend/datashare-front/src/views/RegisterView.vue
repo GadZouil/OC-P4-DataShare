@@ -71,7 +71,7 @@ const loading = ref(false);
 const errors = ref<string[]>([]);
 
 function setErrorsFromError(e: unknown) {
-  const msg = (e as any)?.message ?? "Erreur.";
+  const msg = (e as Error)?.message ?? "Erreur.";
   errors.value = String(msg).split("\n").filter(Boolean);
 }
 
