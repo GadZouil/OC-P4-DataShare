@@ -1,4 +1,5 @@
 using DataShare.Api.Data;
+using DataShare.Api.Middleware;
 using DataShare.Api.Models;
 using DataShare.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -10,15 +11,45 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ---------------------------------------------------------------------------
+// Logs structurés : en dehors du développement (ex. conteneur Docker), chaque
+// ligne de log est émise en JSON (timestamp, niveau, catégorie, message et
+// propriétés nommées) pour être exploitable par un collecteur de logs.
+// En développement, le format texte lisible de la console est conservé.
+// ---------------------------------------------------------------------------
+if (!builder.Environment.IsDevelopment())
+{
+    builder.Logging.ClearProviders();
+    builder.Logging.AddJsonConsole(o =>
+    {
+        o.IncludeScopes = false;
+        o.TimestampFormat = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
+        o.UseUtcTimestamp = true;
+    });
+}
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// ---------------------------------------------------------------------------
+// CORS : seules les origines listées dans Cors:AllowedOrigins sont acceptées
+// (par défaut le serveur de dev Vite). En Docker, nginx sert le front et
+// proxifie /api en même origine : CORS n'entre alors pas en jeu.
+// Content-Disposition est exposé pour que le front lise le nom du fichier.
+// ---------------------------------------------------------------------------
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+if (allowedOrigins is null || allowedOrigins.Length == 0)
+    allowedOrigins = new[] { "http://localhost:5173" };
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("dev", builder =>
+    options.AddPolicy("frontend", policy =>
     {
-        builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .WithExposedHeaders("Content-Disposition");
     });
 });
 
@@ -47,6 +78,15 @@ builder.Services.AddHostedService<ExpiredFilesCleanupService>();
 
 builder.Services.Configure<FormOptions>(o => o.MultipartBodyLengthLimit = 1_073_741_824);
 
+// ---------------------------------------------------------------------------
+// JWT : la clé de signature HMAC-SHA256 doit faire au moins 32 caractères
+// (256 bits). On échoue au démarrage plutôt que de tourner avec une clé faible.
+// ---------------------------------------------------------------------------
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
+    throw new InvalidOperationException(
+        "Configuration invalide : 'Jwt:Key' doit être définie et contenir au moins 32 caractères (variable d'environnement Jwt__Key ou user-secrets).");
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(o =>
     {
@@ -58,9 +98,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "Key_Fallback_Pour_Eviter_Crash_Au_Demarrage")
-            )
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
     });
 
@@ -81,8 +119,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// Métriques par requête (méthode, route, statut, durée, volume) : placé en tête
+// du pipeline pour mesurer le temps total, y compris l'authentification.
+app.UseRequestMetrics();
+
 app.UseRouting();
-app.UseCors("dev");
+app.UseCors("frontend");
 
 app.UseAuthentication();
 app.UseAuthorization();
