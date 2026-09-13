@@ -110,7 +110,7 @@ k6 run perf/k6-upload-test.js                               # test de charge (AP
 
 Sous Windows, `.\scripts\verify.ps1` enchaîne tests, couverture, build front et audits de sécurité, et affiche un résumé.
 
-Résultats et détails : [TESTING.md](./TESTING.md) (plan de tests, couverture 83 % du code métier), [SECURITY.md](./SECURITY.md) (audit des dépendances, mécanismes en place), [PERF.md](./PERF.md) (k6, Lighthouse, logs structurés), [MAINTENANCE.md](./MAINTENANCE.md) (exploitation, sauvegardes, mises à jour).
+Résultats et détails : [TESTING.md](./TESTING.md) (plan de tests, couverture 91 % du code métier), [SECURITY.md](./SECURITY.md) (audit des dépendances, mécanismes en place), [PERF.md](./PERF.md) (k6, Lighthouse, logs structurés), [MAINTENANCE.md](./MAINTENANCE.md) (exploitation, sauvegardes, mises à jour).
 
 ---
 

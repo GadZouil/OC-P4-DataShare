@@ -122,29 +122,32 @@ En production, ces lignes JSON se branchent sans transformation sur un collecteu
 
 Optimisations en place : tree-shaking et minification Vite, **lazy loading** des vues Upload / Download / Mon espace (`() => import(...)` dans le routeur), CSS unique minifié, polices Google en `preconnect`.
 
-### Lighthouse (audit du 31/03/2026, build de production servi par `vite preview`)
+### Lighthouse (run du 13/09/2026 — Lighthouse 13.4.1 en mode headless, build de production servi par `vite preview`, page d'accueil ; audit précédent du 31/03/2026 en référence)
 
-| Catégorie | Score | Cible | Statut |
-|---|---|---|---|
-| Performance | **96** | ≥ 90 | ✅ |
-| Accessibility | **76** | ≥ 90 | ⚠️ |
-| Best Practices | **100** | ≥ 90 | ✅ |
-| SEO | **82** | ≥ 80 | ✅ |
+| Catégorie | Run du 13/09/2026 | Référence 31/03/2026 | Cible | Statut |
+|---|---|---|---|---|
+| Performance | **99** | 96 | ≥ 90 | ✅ |
+| Accessibility | **88** | 76 | ≥ 90 | ⚠️ |
+| Best Practices | **100** | 100 | ≥ 90 | ✅ |
+| SEO | **91** | 82 | ≥ 80 | ✅ |
 
-| Métrique | Valeur | Budget | Statut |
-|---|---|---|---|
-| FCP | 2,1 s | < 1,5 s | ⚠️ |
-| LCP | 2,3 s | < 2,5 s | ✅ |
-| TBT | 0 ms | < 200 ms | ✅ |
-| CLS | 0,001 | < 0,1 | ✅ |
-| Speed Index | 2,1 s | — | — |
+| Métrique | Run du 13/09/2026 | Référence 31/03/2026 | Budget | Statut |
+|---|---|---|---|---|
+| FCP | 1,7 s | 2,1 s | < 1,5 s | ⚠️ |
+| LCP | 1,8 s | 2,3 s | < 2,5 s | ✅ |
+| TBT | 0 ms | 0 ms | < 200 ms | ✅ |
+| CLS | 0,001 | 0,001 | < 0,1 | ✅ |
+| Speed Index | 1,7 s | 2,1 s | — | — |
+
+Rapport complet du 13/09/2026 : [`docs/lighthouse-report.html`](docs/lighthouse-report.html). La capture ci-dessous date de l'audit du 31/03/2026.
 
 ![Scores Lighthouse](docs/lighthouse-scores.png)
 
 **Analyse et actions**
 
-- **Accessibility 76** : les contrastes de couleurs proviennent directement de la charte Figma fournie (texte clair sur dégradé orangé) ; le point est remonté à l'UX designer plutôt que corrigé unilatéralement côté développement. Les éléments corrigibles sans toucher la charte ont été traités le 13/09/2026 : attribut `lang="fr"`, titre de page et meta description (l'ancien `index.html` Vite avait `lang=""` et le titre « Vite App », deux audits Lighthouse en échec). Audit à relancer.
-- **FCP 2,1 s** : dû au chargement bloquant des polices Google Fonts. Piste : auto-héberger les polices (`font-display: swap`) ou précharger la police principale.
+- **Accessibility 88 (76 en mars)** : les corrections hors charte du 13/09/2026 (attribut `lang="fr"`, titre de page, meta description — l'ancien `index.html` Vite avait `lang=""` et le titre « Vite App ») ont fait gagner 12 points. Seul audit encore en échec sur la page d'accueil : `button-name` (le bouton rond d'ajout de fichier n'a pas de nom accessible ; un `aria-label` suffirait). Les contrastes de couleurs proviennent de la charte Figma fournie (texte clair sur dégradé orangé) : le point reste remonté à l'UX designer plutôt que corrigé unilatéralement côté développement.
+- **FCP 1,7 s** (2,1 s en mars) : encore au-dessus du budget de 1,5 s, dû au chargement bloquant des polices Google Fonts. Piste : auto-héberger les polices (`font-display: swap`) ou précharger la police principale.
+- **SEO 91** : seul audit en échec `robots-txt` (aucun `robots.txt` servi par `vite preview`), sans objet pour une application dont les pages utiles sont derrière authentification.
 - Reproduire : `npm run build && npm run preview` puis Chrome DevTools → Lighthouse, ou `npx lighthouse http://localhost:4173 --output=html --output-path=docs/lighthouse-report.html`.
 
 ---

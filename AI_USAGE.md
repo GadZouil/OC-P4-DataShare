@@ -67,7 +67,7 @@ Après réception du code IA, les corrections suivantes ont été apportées man
 | Architecture | Conseils sur l'organisation Services/Models/Controllers |
 | Recherche technique | Bonnes pratiques .NET, Vue 3, PostgreSQL — remplace efficacement Google/Stack Overflow |
 | Documentation | Assistance rédaction des fichiers .md techniques |
-| Revue finale avant soutenance (09/2026) | Audit de cohérence code ↔ documentation (OpenAPI périmé, SECURITY.md décrivant des mécanismes absents du code), propositions de tests de sécurité (isolation entre utilisateurs) et de logs structurés, relecture du support de présentation. Chaque proposition a été relue, exécutée (`dotnet test`, `npm run build`) et validée avant commit. |
+| Revue finale avant soutenance (09/2026) | Audit de cohérence code ↔ documentation (OpenAPI périmé, SECURITY.md décrivant des mécanismes absents du code), propositions de tests de sécurité (isolation entre utilisateurs) et de logs structurés, relecture du support de présentation. Puis session de finition assistée (Claude Code, 13/09/2026) : compilation et exécution des tests des commits préparés (41/41), couverture remesurée (91 %), correction d'un écart code/documentation détecté par l'audit (liste noire d'extensions non appliquée à l'upload anonyme), alignement d'`openapi.yaml` et d'`API_REFERENCE.md` sur les contrôleurs, Lighthouse relancé, préparation du dossier de révision. Chaque proposition a été relue, exécutée (`dotnet test`, `npm run build`, parcours de démonstration complet) et validée avant commit. |
 
 L'IA s'est révélée particulièrement pratique pour **l'audit**, **les conseils d'architecture** et **les recherches techniques**, où elle remplace efficacement une recherche internet classique avec un contexte projet déjà chargé.
 

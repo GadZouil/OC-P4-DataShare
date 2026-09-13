@@ -102,21 +102,22 @@ npx cypress open                      # interface graphique
 | Indicateur | Valeur |
 |---|---|
 | Tests xUnit | **41** (2 unitaires, 39 d'intégration) |
-| Dernier run complet documenté | 02/08/2026 : 32 / 32 verts |
-| Ajouts du 13/09/2026 (à relancer avant la soutenance : `dotnet test` ou `scripts/verify.ps1`) | 9 tests : isolation entre utilisateurs, `GET /files/me` + filtre `status`, endpoints privés sans token, lien expiré → 410, fuite d'information, inscription (mot de passe court, email dupliqué), connexion email inconnu |
+| Dernier run complet documenté | 13/09/2026 : 41 / 41 verts (précédent : 02/08/2026, 32 / 32) |
+| Ajouts du 13/09/2026 (inclus dans le run ci-dessus) | 9 tests : isolation entre utilisateurs, `GET /files/me` + filtre `status`, endpoints privés sans token, lien expiré → 410, fuite d'information, inscription (mot de passe court, email dupliqué), connexion email inconnu |
 
 ### Backend — couverture (hors migrations EF Core)
 
-Mesure de référence du 02/08/2026 (`coverage.cobertura.xml`, 339 / 407 lignes) :
+Mesure du 13/09/2026 (`coverage.cobertura.xml`, 413 / 452 lignes, 95 / 130 branches). Référence précédente du 02/08/2026 : 83,3 % lignes / 62,1 % branches (339 / 407 lignes), avant l'ajout de `SecurityTests`, `AuthApiTests` et du middleware de logs :
 
 | Périmètre | Lignes | Branches |
 |---|---|---|
-| **Global code métier** | **83,3 %** | 62,1 % |
-| `AuthController` | 100 % | 50 % |
-| `FilesController` | 82–100 % selon l'action (`GetMine` : 0 % → couvert depuis l'ajout de `SecurityTests`) | 50–67 % |
-| `PublicFilesController` | 84–100 % | 25–90 % |
+| **Global code métier** | **91,3 %** | **73 %** |
+| `AuthController` | 100 % | 87,5 % |
+| `FilesController` | 90,6 % (`GetMine`, à 0 % en août, est couvert par `SecurityTests`) | 63,3 % |
+| `PublicFilesController` | 95,2 % | 85 % |
+| `RequestMetricsMiddleware` | 87 % | 66,7 % |
 | `LocalFileStorage` | 100 % | 75 % |
-| `ExpiredFilesCleanupService` | 78–100 % | 100 % |
+| `ExpiredFilesCleanupService` | 75,5 % | 75 % |
 | `FileItem` | 85,7 % | — |
 
 Seuil du projet : **≥ 70 %** — atteint. Les fichiers exclus (`Migrations/*`, `Data/*`, `Program`) sont du code généré ou de la configuration ; inclus, le taux brut tomberait à ~18 % à cause des ~2 000 lignes de migrations, ce qui n'aurait aucun sens comme indicateur.

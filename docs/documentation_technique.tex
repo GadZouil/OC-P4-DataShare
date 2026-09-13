@@ -604,16 +604,17 @@ La couverture est mesur\'ee via Coverlet int\'egr\'e \`a \texttt{dotnet test}. L
 \textbf{M\'etrique} & \textbf{R\'esultat} & \textbf{Objectif} \\
 \midrule
 \endhead
-Couverture en lignes & \textbf{83,2\%} & $\geq$ 80\% \\
-Couverture en branches & \textbf{62\%} & $\geq$ 50\% \\
+Couverture en lignes & \textbf{91,3\%} & $\geq$ 80\% \\
+Couverture en branches & \textbf{73\%} & $\geq$ 50\% \\
 Couche Controllers (Auth) & 100\% & -- \\
-Couche Controllers (Files) & 74\% & -- \\
-Couche Controllers (Public) & 90,7\% & -- \\
+Couche Controllers (Files) & 90,6\% & -- \\
+Couche Controllers (Public) & 95,2\% & -- \\
+Couche Middleware (RequestMetrics) & 87\% & -- \\
 Couche Services & 75,5--100\% & -- \\
 \bottomrule
 \end{longtable}
 
-Mesure de r\'ef\'erence du 02/08/2026 (339 lignes couvertes sur 407, hors migrations). L'endpoint \texttt{GET /api/files/me}, alors non couvert, l'est depuis l'ajout de \texttt{SecurityTests} (13/09/2026). Le rapport HTML est g\'en\'er\'e dans \texttt{backend/TestResults/CoverageReport/index.html}.
+Mesure du 13/09/2026 (413 lignes couvertes sur 452 et 95 branches sur 130, hors migrations ; 41 tests verts). R\'ef\'erence pr\'ec\'edente du 02/08/2026 : 83,2\% en lignes et 62\% en branches (339 lignes sur 407). L'endpoint \texttt{GET /api/files/me}, alors non couvert, l'est depuis l'ajout de \texttt{SecurityTests}. Le rapport HTML est g\'en\'er\'e dans \texttt{backend/TestResults/CoverageReport/index.html}.
 
 \textbf{Commandes :}
 \begin{lstlisting}
@@ -704,22 +705,22 @@ Score Accessibility & $\geq$ 90 & -- \\
 
 Optimisations mises en place : bundling Vite (tree-shaking), lazy-loading des routes Vue Router, CSS minifi\'e en production.
 
-\subsubsection{R\'esultats Lighthouse (audit du 31/03/2026)}
+\subsubsection{R\'esultats Lighthouse (run du 13/09/2026, r\'ef\'erence du 31/03/2026)}
 
-\begin{longtable}{p{4cm} p{2cm} p{2cm} p{2cm}}
+\begin{longtable}{p{3.5cm} p{2.2cm} p{2.2cm} p{2cm} p{2.5cm}}
 \toprule
-\textbf{Cat\'egorie} & \textbf{Score} & \textbf{Objectif} & \textbf{Statut} \\
+\textbf{Cat\'egorie} & \textbf{13/09/2026} & \textbf{31/03/2026} & \textbf{Objectif} & \textbf{Statut} \\
 \midrule
-Performance & 96 & $\geq$ 90 & Pass\'e \\
-Accessibility & 76 & $\geq$ 90 & \`A am\'eliorer \\
-Best Practices & 100 & $\geq$ 90 & Pass\'e \\
-SEO & 82 & $\geq$ 80 & Pass\'e \\
+Performance & \textbf{99} & 96 & $\geq$ 90 & Pass\'e \\
+Accessibility & \textbf{88} & 76 & $\geq$ 90 & \`A am\'eliorer \\
+Best Practices & \textbf{100} & 100 & $\geq$ 90 & Pass\'e \\
+SEO & \textbf{91} & 82 & $\geq$ 80 & Pass\'e \\
 \bottomrule
 \end{longtable}
 
-\textbf{M\'etriques d\'etaill\'ees :} FCP 2,1\,s, LCP 2,3\,s, TBT 0\,ms, CLS 0,001, Speed Index 2,1\,s.
+\textbf{M\'etriques d\'etaill\'ees (13/09/2026) :} FCP 1,7\,s, LCP 1,8\,s, TBT 0\,ms, CLS 0,001, Speed Index 1,7\,s (31/03/2026 : FCP 2,1\,s, LCP 2,3\,s, TBT 0\,ms, CLS 0,001, Speed Index 2,1\,s). Rapport complet : \texttt{docs/lighthouse-report.html}.
 
-\textbf{Analyse :} Le score Accessibility (76) est en dessous de l'objectif --- les am\'eliorations prioritaires concernent les contrastes et attributs ARIA. Le FCP (2,1\,s) d\'epasse l\'eg\`erement le budget de 1,5\,s, optimisable via le pr\'echargement des fonts.
+\textbf{Analyse :} Le score Accessibility est pass\'e de 76 \`a 88 gr\^ace aux corrections hors charte (attribut \texttt{lang="fr"}, titre de page, meta description) ; le seul audit encore en \'echec sur la page d'accueil est \texttt{button-name} (bouton d'ajout de fichier sans nom accessible). Les contrastes issus de la charte Figma restent remont\'es \`a l'UX designer. Le FCP (1,7\,s) d\'epasse encore le budget de 1,5\,s, optimisable via l'auto-h\'ebergement ou le pr\'echargement des polices.
 
 
 \subsection{Maintenance}
@@ -967,7 +968,7 @@ Debugging & R\'esolution d'erreurs CORS, JWT, configuration Docker \\
 Architecture & Conseils sur l'organisation Services/Models/Controllers \\
 Recherche technique & Bonnes pratiques .NET, Vue 3, PostgreSQL --- remplace efficacement Google/Stack Overflow \\
 Documentation & Assistance r\'edaction des fichiers \texttt{.md} techniques \\
-Revue finale avant soutenance (09/2026) & Audit de coh\'erence code $\leftrightarrow$ documentation (OpenAPI p\'erim\'e, \texttt{SECURITY.md} d\'ecrivant des m\'ecanismes absents du code), propositions de tests de s\'ecurit\'e et de logs structur\'es, relecture du support ; chaque proposition relue, ex\'ecut\'ee (\texttt{dotnet test}, \texttt{npm run build}) et valid\'ee avant commit \\
+Revue finale avant soutenance (09/2026) & Audit de coh\'erence code $\leftrightarrow$ documentation (OpenAPI p\'erim\'e, \texttt{SECURITY.md} d\'ecrivant des m\'ecanismes absents du code), propositions de tests de s\'ecurit\'e et de logs structur\'es, relecture du support ; puis session de finition assist\'ee (Claude Code) : compilation et ex\'ecution des tests des commits pr\'epar\'es (41/41), couverture remesur\'ee (91\,\%), correction d'un \'ecart code/documentation d\'etect\'e par l'audit (liste noire d'extensions non appliqu\'ee \`a l'upload anonyme), alignement d'OpenAPI et d'\texttt{API\_REFERENCE.md} sur les contr\^oleurs, Lighthouse relanc\'e. Chaque proposition relue, ex\'ecut\'ee (\texttt{dotnet test}, \texttt{npm run build}, parcours de d\'emonstration) et valid\'ee avant commit \\
 \bottomrule
 \end{longtable}
 
