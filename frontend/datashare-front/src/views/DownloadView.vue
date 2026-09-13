@@ -88,8 +88,8 @@ async function loadMeta(token: string) {
   meta.value = null;
   try {
     meta.value = await getFileMeta(token);
-  } catch (e: any) {
-    error.value = e?.message ?? "Lien invalide ou expiré.";
+  } catch (e: unknown) {
+    error.value = (e as Error)?.message ?? "Lien invalide ou expiré.";
   }
 }
 
@@ -109,8 +109,8 @@ async function doDownload() {
   error.value = null;
   try {
     await downloadFile(token, password.value || undefined);
-  } catch (e: any) {
-    error.value = e?.message ?? "Téléchargement impossible.";
+  } catch (e: unknown) {
+    error.value = (e as Error)?.message ?? "Téléchargement impossible.";
   } finally {
     loading.value = false;
   }

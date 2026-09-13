@@ -20,12 +20,14 @@ public class FilesController : ControllerBase
     private readonly DataShareDbContext _db;
     private readonly IFileStorage _storage;
     private readonly UserManager<AppUser> _users;
+    private readonly ILogger<FilesController> _logger;
 
-    public FilesController(DataShareDbContext db, IFileStorage storage, UserManager<AppUser> users)
+    public FilesController(DataShareDbContext db, IFileStorage storage, UserManager<AppUser> users, ILogger<FilesController> logger)
     {
         _db = db;
         _storage = storage;
         _users = users;
+        _logger = logger;
     }
 
     public class UploadRequest
@@ -41,7 +43,7 @@ public class FilesController : ControllerBase
         ".exe", ".bat", ".cmd", ".com", ".msi", ".scr", ".ps1"
     };
 
-    private static bool IsForbiddenFile(string fileName)
+    internal static bool IsForbiddenFile(string fileName)
     {
         var ext = Path.GetExtension(fileName);
         return !string.IsNullOrWhiteSpace(ext) && ForbiddenExt.Contains(ext);
@@ -70,7 +72,6 @@ public class FilesController : ControllerBase
         if (string.IsNullOrWhiteSpace(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
             return Unauthorized();
 
-        // Token URL-safe
         var tokenBytes = RandomNumberGenerator.GetBytes(32);
         var token = WebEncoders.Base64UrlEncode(tokenBytes);
 
@@ -103,6 +104,11 @@ public class FilesController : ControllerBase
 
         _db.Files.Add(item);
         await _db.SaveChangesAsync(ct);
+
+        // Métrique clé : taille des fichiers transférés (log structuré)
+        _logger.LogInformation(
+            "File uploaded {FileId} ({SizeBytes} bytes, {ContentType}) by user {UserId}, expires {ExpiresAt}, passwordProtected={PasswordProtected}, tags={TagCount}",
+            item.Id, item.SizeBytes, item.ContentType, userId, item.ExpiresAt, item.IsPasswordProtected, item.Tags.Length);
 
         return CreatedAtAction(nameof(GetById), new { id = item.Id }, new
         {
@@ -200,6 +206,8 @@ public class FilesController : ControllerBase
 
         _db.Files.Remove(item);
         await _db.SaveChangesAsync(ct);
+
+        _logger.LogInformation("File deleted {FileId} ({SizeBytes} bytes) by user {UserId}", item.Id, item.SizeBytes, userId);
 
         return NoContent();
     }

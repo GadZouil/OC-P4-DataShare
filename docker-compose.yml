@@ -1,17 +1,69 @@
+# =============================================================================
+# DataShare - Stack complete : PostgreSQL + API ASP.NET Core + Frontend (nginx)
+# Les valeurs ${VAR:-defaut} sont lues depuis un fichier `.env` a la racine
+# (voir `.env.example`). Sans `.env`, les valeurs par defaut conviennent pour
+# une demo locale mais PAS pour la production.
+# =============================================================================
 services:
-  postgres:
+  db:
     image: postgres:16
     container_name: oc-p4-datashare-postgres
     environment:
-      POSTGRES_DB: datashare
-      POSTGRES_USER: datashare
-      POSTGRES_PASSWORD: datashare
+      POSTGRES_DB: ${POSTGRES_DB:-datashare}
+      POSTGRES_USER: ${POSTGRES_USER:-datashare}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-datashare}
       POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
       POSTGRES_HOST_AUTH_METHOD: "scram-sha-256"
     ports:
       - "5433:5432"
     volumes:
       - datashare_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-datashare} -d ${POSTGRES_DB:-datashare}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: oc-p4-datashare-api
+    environment:
+      ASPNETCORE_URLS: "http://+:5000"
+      ConnectionStrings__Default: "Host=db;Port=5432;Database=${POSTGRES_DB:-datashare};Username=${POSTGRES_USER:-datashare};Password=${POSTGRES_PASSWORD:-datashare}"
+      Jwt__Key: ${JWT_KEY:-change-me-in-production-secret-key-32chars}
+      Jwt__Issuer: ${JWT_ISSUER:-DataShareApi}
+      Jwt__Audience: ${JWT_AUDIENCE:-DataShareClient}
+      Cors__AllowedOrigins__0: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+    ports:
+      - "5000:5000"
+    volumes:
+      # Les fichiers uploades survivent a la recreation du conteneur
+      - datashare_uploads:/app/Storage/Uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:5000/api/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
+    container_name: oc-p4-datashare-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      api:
+        condition: service_healthy
 
 volumes:
   datashare_pg:
+  datashare_uploads:

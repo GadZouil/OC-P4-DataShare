@@ -1,48 +1,36 @@
 # datashare-front
 
-This template should help get you started developing with Vue 3 in Vite.
+SPA Vue 3 + TypeScript + Vite de DataShare. Voir le [README racine](../../README.md) pour l'installation complète (API + base de données).
 
-## Recommended IDE Setup
+## Commandes
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
-
-## Recommended Browser Setup
-
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
-
-## Type Support for `.vue` Imports in TS
-
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
-
-```sh
-npm install
+```bash
+npm install          # dépendances
+npm run dev          # serveur de dev Vite : http://localhost:5173 (API attendue sur http://localhost:5180)
+npm run build        # type-check (vue-tsc) + build de production dans dist/
+npm run preview      # sert dist/ en local (http://localhost:4173) — utilisé pour les audits Lighthouse
+npm run lint         # ESLint
 ```
 
-### Compile and Hot-Reload for Development
+## Configuration
 
-```sh
-npm run dev
+| Variable | Défaut | Rôle |
+|---|---|---|
+| `VITE_API_URL` | `http://localhost:5180` | URL de base de l'API. En Docker : `/api` (proxy nginx, même origine). |
+
+Créer un fichier `.env.local` (ignoré par Git) pour surcharger, ex. `VITE_API_URL=http://localhost:5000`.
+
+## Structure
+
+```
+src/
+├── api/        # appels HTTP typés (auth.ts, files.ts) + mapping des erreurs API en messages FR
+├── services/   # instance Axios (baseURL, injection du JWT, gestion du 401)
+├── router/     # routes + garde d'authentification (/me)
+├── stores/     # store Pinia (état d'authentification)
+├── layouts/    # PublicLayout (en-tête / pied de page des pages publiques)
+├── views/      # UploadView, DownloadView, LoginView, RegisterView, MeView
+└── styles/     # datashare.css : charte issue des maquettes Figma
 ```
 
-### Type-Check, Compile and Minify for Production
-
-```sh
-npm run build
-```
-
-### Lint with [ESLint](https://eslint.org/)
-
-```sh
-npm run lint
-```
+Les tests end-to-end Cypress vivent dans `../cypress` (voir [TESTING.md](../../TESTING.md)).

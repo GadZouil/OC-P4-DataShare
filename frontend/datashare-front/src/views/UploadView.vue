@@ -134,7 +134,6 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { useRouter } from "vue-router";
 import PublicLayout from "../layouts/PublicLayout.vue";
 import { uploadFile, uploadPublicFile } from "../api/files";
 import { isAuthenticated } from "../api/auth";
@@ -142,7 +141,6 @@ import { isAuthenticated } from "../api/auth";
 type Step = "idle" | "form" | "done";
 
 const fileInput = ref<HTMLInputElement | null>(null);
-const router = useRouter();
 
 const step = ref<Step>("idle");
 const file = ref<File | null>(null);
@@ -164,10 +162,9 @@ const headerTo = computed(() => (isLoggedIn.value ? "/me" : "/login"));
 function pickFile() {
   error.value = null;
 
-  // if (!isLoggedIn.value) {
-  //   router.push("/login");
-  //   return;
-  // }
+  if (fileInput.value) {
+    fileInput.value.value = '';
+  }
 
   fileInput.value?.click();
 }
@@ -195,12 +192,12 @@ function prettySize(bytes: number): string {
 async function doUpload() {
   error.value = null;
 
-  // if (!isLoggedIn.value) {
-  //   router.push("/login");
-  //   return;
-  // }
-
   if (!file.value) return;
+
+  if (password.value.trim().length > 0 && password.value.trim().length < 6) {
+    error.value = "Mot de passe : minimum 6 caractères.";
+    return;
+  }
 
   loading.value = true;
   try {
@@ -215,8 +212,8 @@ async function doUpload() {
 
     shareUrl.value = res.shareUrl;
     step.value = "done";
-  } catch (e: any) {
-    error.value = String(e?.message || "Erreur lors du téléversement.");
+  } catch (e: unknown) {
+    error.value = String((e as Error)?.message || "Erreur lors du téléversement.");
   } finally {
     loading.value = false;
   }
@@ -229,10 +226,6 @@ async function copyLink() {
   } catch {
     window.prompt("Copie le lien :", shareUrl.value);
   }
-}
-
-function normalizeTag(tag: string): string {
-  return tag.trim().toLowerCase();
 }
 
 function addTag() {

@@ -3,8 +3,11 @@
     <div class="ds-card">
       <h1 class="ds-title">Connexion</h1>
 
-      <div v-if="error" class="ds-callout" style="white-space: pre-line;">
+      <div v-if="error" class="ds-callout ds-callout--error" style="white-space: pre-line;">
         {{ error }}
+      </div>
+      <div v-else-if="sessionExpired" class="ds-callout">
+        Ta session a expiré, reconnecte-toi.
       </div>
 
       <form class="ds-form" @submit.prevent="onSubmit">
@@ -44,34 +47,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
-import { useRouter } from "vue-router";
+import { computed, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import PublicLayout from "../layouts/PublicLayout.vue";
-import { login } from "../api/auth";
+import { login, setUsername } from "../api/auth";
 
 const router = useRouter();
+const route = useRoute();
+
+// Affiché lorsque l'intercepteur API a redirigé ici après un 401 (token expiré)
+const sessionExpired = computed(() => route.query.expired === "1");
 
 const email = ref("");
 const password = ref("");
 const error = ref<string | null>(null);
 const loading = ref(false);
 
-function extractApiError(e: any): string {
-  const status = e?.response?.status;
-  const data = e?.response?.data;
-
-  if (status === 401) return "Identifiants incorrects.";
-
-  // si le back renvoie { message: "..." }
-  if (data?.message && typeof data.message === "string") return data.message;
-
-  // si le back renvoie du texte brut
-  if (typeof data === "string") return data;
-
-  // si axios met un message standard
-  if (e?.message) return e.message;
-
-  return "Erreur.";
+function extractApiError(e: unknown): string {
+  // login() (api/auth.ts) a déjà traduit l'erreur HTTP en message lisible
+  const msg = (e as Error)?.message;
+  return typeof msg === "string" && msg.trim().length > 0 ? msg : "Erreur.";
 }
 
 async function onSubmit() {
@@ -80,10 +75,12 @@ async function onSubmit() {
 
   try {
     await login(email.value, password.value);
+    setUsername(email.value);
 
-    // Choisis ta page post-login (à adapter selon tes routes)
-    router.push("/");
-  } catch (e: any) {
+    // Retour vers la page demandée avant la redirection (ex. /me), sinon l'accueil (upload)
+    const redirect = typeof route.query.redirect === "string" ? route.query.redirect : "/";
+    router.push(redirect.startsWith("/") ? redirect : "/");
+  } catch (e: unknown) {
     error.value = extractApiError(e);
   } finally {
     loading.value = false;

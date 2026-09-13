@@ -41,8 +41,10 @@ function identityErrorsToMessage(errors: IdentityError[]): string {
   return msgs.join("\n");
 }
 
+type ApiErrorBody = IdentityError[] | { message?: string; error?: string } | string | undefined;
+
 function getApiErrorMessage(err: unknown, fallback: string): string {
-  const e = err as AxiosError<any>;
+  const e = err as AxiosError<ApiErrorBody>;
   const data = e?.response?.data;
 
   if (Array.isArray(data)) {
@@ -50,7 +52,8 @@ function getApiErrorMessage(err: unknown, fallback: string): string {
     return msg || fallback;
   }
 
-  const msg = data?.message ?? data?.error ?? e?.message;
+  const body = typeof data === "object" && data !== null ? data : undefined;
+  const msg = body?.message ?? body?.error ?? e?.message;
   return typeof msg === "string" && msg.trim().length > 0 ? msg : fallback;
 }
 
@@ -81,6 +84,10 @@ export async function register(email: string, password: string) {
     const res = await api.post("/auth/register", { email, password });
     return res.data;
   } catch (err) {
+    const e = err as AxiosError;
+    if (e?.isAxiosError && !e.response) {
+      throw new Error("Serveur injoignable. Vérifie que l'API est démarrée puis réessaie.");
+    }
     throw new Error(getApiErrorMessage(err, "Inscription impossible."));
   }
 }
@@ -98,7 +105,15 @@ export async function login(email: string, password: string) {
     setJwt(token);
     return data;
   } catch (err) {
-    throw new Error(getApiErrorMessage(err, "Identifiants invalides."));
+    const e = err as AxiosError;
+    if (e?.isAxiosError && !e.response) {
+      throw new Error("Serveur injoignable. Vérifie que l'API est démarrée puis réessaie.");
+    }
+    if (e?.response?.status === 401) {
+      // Message volontairement générique : on ne révèle pas si l'email existe
+      throw new Error("Email ou mot de passe incorrect.");
+    }
+    throw new Error(getApiErrorMessage(err, "Connexion impossible."));
   }
 }
 

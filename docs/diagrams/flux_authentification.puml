@@ -1,0 +1,107 @@
+@startuml flux_authentification
+!theme plain
+
+skinparam backgroundColor #1a1a2e
+skinparam defaultFontColor #e2e2e2
+skinparam defaultFontSize 13
+skinparam defaultFontName "Segoe UI"
+skinparam sequenceArrowThickness 2
+skinparam arrowColor #FF6B35
+
+skinparam participant {
+    BackgroundColor #16213e
+    BorderColor #FF6B35
+    FontColor #e2e2e2
+    BorderThickness 2
+}
+
+skinparam actor {
+    BackgroundColor #0d0d1a
+    BorderColor #FF6B35
+    FontColor #e2e2e2
+}
+
+skinparam database {
+    BackgroundColor #16213e
+    BorderColor #4ECDC4
+    FontColor #e2e2e2
+}
+
+skinparam sequence {
+    LifeLineBorderColor #FF6B35
+    LifeLineBackgroundColor #0d0d1a
+    GroupHeaderFontColor #e2e2e2
+    GroupBorderColor #FF6B35
+    GroupBackgroundColor #0f1a2e
+    DividerBackgroundColor #0f3460
+    DividerFontColor #FF6B35
+    DividerBorderColor #FF6B35
+    BoxBackgroundColor #0d0d1a
+    BoxBorderColor #555577
+    BoxFontColor #aaaacc
+}
+
+skinparam note {
+    BackgroundColor #0d0d1a
+    BorderColor #555577
+    FontColor #aaaacc
+}
+
+title <color:#FF6B35><b>DataShare — Flux d'Authentification JWT</b></color>\n<size:11>Inscription · Connexion · Appel authentifié</size>
+
+actor "Utilisateur" as U
+participant "Vue 3 SPA\n(Axios + Pinia)" as FE #16213e
+participant "AuthController\n/api/auth" as AUTH #16213e
+participant "UserManager\n(ASP.NET Identity)" as UM #0f3460
+database "PostgreSQL\n(AspNetUsers)" as DB #16213e
+
+== <color:#FF6B35>Inscription</color> ==
+
+U -> FE : Saisie email + mot de passe
+FE -> AUTH : POST /api/auth/register\n<color:#aaaacc>{ email, password }</color>
+AUTH -> UM : CreateAsync(AppUser, password)
+note right of UM
+  Hash PBKDF2 généré
+  automatiquement
+end note
+UM -> DB : INSERT AspNetUsers\n<color:#aaaacc>(PasswordHash PBKDF2)</color>
+DB --> UM : OK
+UM --> AUTH : IdentityResult.Success
+AUTH -> AUTH : Génération token JWT\n<color:#aaaacc>HMAC-SHA256 · 8h · claims: sub, email</color>
+AUTH --> FE : <color:#4ECDC4>200 OK</color> <color:#aaaacc>{ token: "eyJ..." }</color>
+FE -> FE : Stockage token\n<color:#aaaacc>(Pinia auth store)</color>
+FE --> U : Redirection vers l'espace personnel
+
+== <color:#FF6B35>Connexion</color> ==
+
+U -> FE : Saisie email + mot de passe
+FE -> AUTH : POST /api/auth/login\n<color:#aaaacc>{ email, password }</color>
+AUTH -> UM : FindByEmailAsync(email)
+UM -> DB : SELECT AspNetUsers\nWHERE Email = ?
+DB --> UM : AppUser (ou null)
+
+alt <color:#4ECDC4>Utilisateur trouvé et mot de passe correct</color>
+    AUTH -> UM : CheckPasswordAsync(user, password)
+    UM --> AUTH : true
+    AUTH -> AUTH : Génération token JWT\n<color:#aaaacc>HMAC-SHA256 · 8h</color>
+    AUTH --> FE : <color:#4ECDC4>200 OK</color> <color:#aaaacc>{ token: "eyJ..." }</color>
+    FE -> FE : Stockage token\n<color:#aaaacc>(Pinia auth store)</color>
+else <color:#FF4D4D>Identifiants incorrects</color>
+    AUTH --> FE : <color:#FF4D4D>401 Unauthorized</color>
+end
+
+== <color:#FF6B35>Appel authentifié</color> ==
+
+U -> FE : Action protégée\n<color:#aaaacc>(ex: lister mes fichiers)</color>
+FE -> AUTH : GET /api/files\n<color:#aaaacc>Authorization: Bearer eyJ...</color>
+AUTH -> AUTH : Validation JWT\n<color:#aaaacc>Issuer · Audience · Signature · Expiration</color>
+
+alt <color:#4ECDC4>Token valide</color>
+    AUTH -> AUTH : Extraction claims\n<color:#aaaacc>(sub → userId, email)</color>
+    AUTH --> FE : <color:#4ECDC4>200 OK</color> + données
+else <color:#FF4D4D>Token invalide ou expiré</color>
+    AUTH --> FE : <color:#FF4D4D>401 Unauthorized</color>
+    FE -> FE : Déconnexion automatique\n<color:#aaaacc>(intercepteur Axios)</color>
+end
+
+@enduml

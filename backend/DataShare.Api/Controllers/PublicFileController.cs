@@ -15,13 +15,14 @@ public class PublicFilesController : ControllerBase
 {
     private readonly DataShareDbContext _db;
     private readonly IFileStorage _storage;
+    private readonly ILogger<PublicFilesController> _logger;
     private const long MaxBytes = 1_073_741_824; // 1 Go
 
-
-    public PublicFilesController(DataShareDbContext db, IFileStorage storage)
+    public PublicFilesController(DataShareDbContext db, IFileStorage storage, ILogger<PublicFilesController> logger)
     {
         _db = db;
         _storage = storage;
+        _logger = logger;
     }
 
     [HttpGet("{token}")]
@@ -78,10 +79,18 @@ public class PublicFilesController : ControllerBase
             var hasher = new PasswordHasher<FileItem>();
             var result = hasher.VerifyHashedPassword(file, file.PasswordHash, req.Password);
             if (result == PasswordVerificationResult.Failed)
+            {
+                _logger.LogWarning("Download rejected for file {FileId}: invalid password", file.Id);
                 return Unauthorized(new { message = "Invalid password." });
+            }
         }
 
         var (stream, contentType) = await _storage.OpenReadAsync(file.StoredFileName, file.ContentType, ct);
+
+        // Métrique clé : volume téléchargé via lien public (log structuré)
+        _logger.LogInformation("File downloaded {FileId} ({SizeBytes} bytes, {ContentType}) via public link",
+            file.Id, file.SizeBytes, contentType);
+
         return File(stream, contentType, file.OriginalFileName);
     }
     
@@ -102,6 +111,10 @@ public class PublicFilesController : ControllerBase
 
         if (req.ExpiresInDays is < 1 or > 7)
             return BadRequest("ExpiresInDays must be between 1 and 7.");
+
+        // Même liste noire d'extensions que l'upload authentifié (SECURITY.md, openapi.yaml)
+        if (FilesController.IsForbiddenFile(req.File.FileName))
+            return BadRequest("Forbidden file type.");
 
         if (!string.IsNullOrWhiteSpace(req.Password) && req.Password.Trim().Length < 6)
             return BadRequest("Password must be at least 6 characters.");
@@ -137,6 +150,11 @@ public class PublicFilesController : ControllerBase
 
         _db.Files.Add(item);
         await _db.SaveChangesAsync(ct);
+
+        // Métrique clé : taille des fichiers transférés (upload anonyme, log structuré)
+        _logger.LogInformation(
+            "File uploaded {FileId} ({SizeBytes} bytes, {ContentType}) anonymously, expires {ExpiresAt}, passwordProtected={PasswordProtected}, tags={TagCount}",
+            item.Id, item.SizeBytes, item.ContentType, item.ExpiresAt, item.IsPasswordProtected, item.Tags.Length);
 
         return CreatedAtAction(nameof(GetMeta), new { token = item.Token }, new
         {

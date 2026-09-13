@@ -14,8 +14,9 @@
           <div class="ds-label">Email</div>
           <input
             class="ds-input"
-            v-model="email"
-            placeholder="Saisissez votre email…"
+            v-model.trim="email"
+            type="email"
+            inputmode="email"
             autocomplete="email"
             required
           />
@@ -70,7 +71,7 @@ const loading = ref(false);
 const errors = ref<string[]>([]);
 
 function setErrorsFromError(e: unknown) {
-  const msg = (e as any)?.message ?? "Erreur.";
+  const msg = (e as Error)?.message ?? "Erreur.";
   errors.value = String(msg).split("\n").filter(Boolean);
 }
 

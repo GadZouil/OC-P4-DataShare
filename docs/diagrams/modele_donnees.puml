@@ -1,0 +1,84 @@
+@startuml modele_donnees
+!theme plain
+
+skinparam backgroundColor #1a1a2e
+skinparam defaultFontColor #e2e2e2
+skinparam defaultFontSize 13
+skinparam defaultFontName "Segoe UI"
+skinparam ArrowThickness 2
+skinparam arrowColor #FF6B35
+
+skinparam class {
+    BackgroundColor #16213e
+    BorderColor #FF6B35
+    FontColor #e2e2e2
+    HeaderBackgroundColor #0f3460
+    AttributeIconSize 0
+    BorderThickness 2
+}
+
+skinparam stereotypeCBackgroundColor #0f3460
+skinparam stereotypeCBorderColor #4ECDC4
+
+skinparam note {
+    BackgroundColor #0d0d1a
+    BorderColor #555577
+    FontColor #aaaacc
+}
+
+title <color:#FF6B35><b>DataShare — Modèle de Données</b></color>\n<size:11>Entités métier · EF Core 9 · PostgreSQL 16</size>
+
+class AppUser <<IdentityUser<Guid>>> {
+    + Id : Guid <b>«PK»</b>
+    + UserName : string
+    + Email : string
+    + PasswordHash : string
+    + SecurityStamp : string
+    + ConcurrencyStamp : string
+    ..
+    // Généré par ASP.NET Core Identity
+    // Hash PBKDF2 du mot de passe
+}
+
+class FileItem {
+    + Id : Guid <b>«PK»</b>
+    + OwnerId : Guid? <b>«FK nullable»</b>
+    + OriginalFileName : string [max 255]
+    + StoredFileName : string
+    + ContentType : string? [max 255]
+    + SizeBytes : long
+    + Token : string [max 128] <b>«Index Unique»</b>
+    + CreatedAt : DateTimeOffset
+    + ExpiresAt : DateTimeOffset
+    + PasswordHash : string?
+    + Tags : string[] <b>«text[]»</b>
+    ..
+    <i>IsExpired : bool</i> «calculé, non mappé»
+    <i>IsPasswordProtected : bool</i> «calculé, non mappé»
+}
+
+AppUser "1" o-right-o "0..*" FileItem : <color:#FF6B35>possède ▶</color>
+
+note on link
+  <b>OwnerId nullable</b> :
+  upload anonyme autorisé
+  (US07)
+end note
+
+note bottom of FileItem
+  <b>Token</b> : 256 bits d'entropie
+  (RandomNumberGenerator, Base64Url)
+  ─────────────────────────────────
+  <b>Tags</b> : tableau natif PostgreSQL
+  dédupliqués (case-insensitive),
+  max 20 tags par fichier
+end note
+
+note bottom of AppUser
+  Tables générées par Identity :
+  AspNetUsers · AspNetRoles
+  AspNetUserRoles · AspNetUserClaims
+  AspNetUserLogins · AspNetUserTokens
+end note
+
+@enduml

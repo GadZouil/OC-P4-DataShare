@@ -24,10 +24,8 @@ import { useRoute } from "vue-router";
 import { getJwt } from "../api/auth";
 
   const route = useRoute();
-  const isLoggedIn = computed(() => {
-    route.fullPath; // dépendance reactive
-    return !!getJwt();
-  });
+  // Recalculé à chaque changement de route (le JWT peut avoir été posé ou retiré entre-temps)
+  const isLoggedIn = computed(() => Boolean(route.fullPath) && !!getJwt());
 
   const props = defineProps<{
     headerActionLabel: string;

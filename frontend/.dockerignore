@@ -1,0 +1,7 @@
+**/node_modules/
+**/dist/
+**/.vite/
+**/coverage/
+cypress/
+cypress.config.js
+**/.env.local
