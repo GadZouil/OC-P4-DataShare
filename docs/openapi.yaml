@@ -1,10 +1,44 @@
 openapi: 3.0.3
 info:
-  title: OC-P4 DataShare API
+  title: DataShare API
   version: 1.0.0
+  contact:
+    name: Ethan Legros — référent technique DataShare
+    url: https://github.com/GadZouil/OC-P4-DataShare
+  license:
+    name: Projet pédagogique OpenClassrooms
+    url: https://github.com/GadZouil/OC-P4-DataShare
+  description: |
+    Contrat d'interface de la plateforme de transfert sécurisé de fichiers DataShare
+    (OpenClassrooms — Projet 4). Ce fichier décrit les endpoints réellement
+    implémentés dans `backend/DataShare.Api` ; Swagger UI (`/swagger`) expose la
+    même API en développement.
+
+    **Authentification** : les endpoints privés (`/files...`) attendent un en-tête
+    `Authorization: Bearer <JWT>`. Le JWT est obtenu via `/auth/register` ou
+    `/auth/login` et expire après 8 heures.
+
+    **Liens de partage** : les endpoints publics (`/public/files/{token}...`) sont
+    accessibles sans compte, via un token de partage opaque (32 octets aléatoires,
+    Base64Url) distinct de l'identifiant technique du fichier.
 
 servers:
   - url: /api
+    description: Derrière nginx (Docker Compose) — proxy vers l'API
+  - url: http://localhost:5000/api
+    description: API Docker exposée directement
+  - url: http://localhost:5180/api
+    description: API lancée avec `dotnet run` (profil http)
+
+tags:
+  - name: Auth
+    description: Création de compte et connexion (US03, US04)
+  - name: Files
+    description: Fichiers de l'utilisateur connecté (US01, US05, US06)
+  - name: Public
+    description: Upload anonyme et liens de partage (US02, US07, US09)
+  - name: System
+    description: Santé de l'API (healthcheck Docker, scripts de déploiement)
 
 components:
   securitySchemes:
@@ -18,46 +52,182 @@ components:
       type: object
       required: [email, password]
       properties:
-        email: { type: string, format: email }
-        password: { type: string, minLength: 8 }
+        email: { type: string, format: email, example: alice@example.com }
+        password: { type: string, minLength: 8, example: MonMotDePasse1 }
 
     LoginRequest:
       type: object
       required: [email, password]
       properties:
-        email: { type: string, format: email }
-        password: { type: string }
+        email: { type: string, format: email, example: alice@example.com }
+        password: { type: string, example: MonMotDePasse1 }
 
-    TokenResponse:
+    AuthResponse:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          description: JWT signé HMAC-SHA256, valable 8 heures
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+    IdentityError:
       type: object
       properties:
-        accessToken: { type: string }
+        code: { type: string, example: DuplicateUserName }
+        description: { type: string, example: "Username 'alice@example.com' is already taken." }
+
+    UploadForm:
+      type: object
+      required: [file]
+      properties:
+        file:
+          type: string
+          format: binary
+          description: Fichier à téléverser (max 1 Go ; extensions exécutables refusées)
+        expiresInDays:
+          type: integer
+          minimum: 1
+          maximum: 7
+          default: 7
+          description: Durée de conservation en jours
+        password:
+          type: string
+          minLength: 6
+          description: Mot de passe optionnel demandé au téléchargement (haché côté serveur)
+        tags:
+          type: array
+          maxItems: 20
+          items: { type: string }
+          description: Tags libres (dédupliqués sans tenir compte de la casse, 20 max ; la limite de 24 caractères par tag est appliquée côté front). Champ multipart répétable.
+
+    FileResponse:
+      type: object
+      description: Métadonnées d'un fichier vues par son propriétaire (ou renvoyées après upload)
+      properties:
+        id: { type: string, format: uuid, example: 3fa85f64-5717-4562-b3fc-2c963f66afa6 }
+        originalFileName: { type: string, example: rapport.pdf }
+        sizeBytes: { type: integer, format: int64, example: 204800 }
+        contentType: { type: string, nullable: true, example: application/pdf }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        token:
+          type: string
+          description: Token de partage — le lien public est `/download/{token}` côté front
+          example: 6c9Yq0Wq2b1f5s8K3hJ9r7xL2mN4pQ1sT8vW3yZ0aB4
+        passwordRequired: { type: boolean, example: false }
+        tags:
+          type: array
+          items: { type: string }
+          example: [projet, "2026"]
+
+    MyFileListItem:
+      allOf:
+        - $ref: "#/components/schemas/FileResponse"
+        - type: object
+          properties:
+            isExpired:
+              type: boolean
+              description: Présent uniquement sur `GET /files`
 
     PublicFileMetadata:
       type: object
+      description: Métadonnées visibles par un destinataire du lien (jamais le token ni le propriétaire)
       properties:
-        token: { type: string }
-        originalName: { type: string }
-        mimeType: { type: string }
-        sizeBytes: { type: integer, format: int64 }
-        uploadedAt: { type: string, format: date-time }
+        id: { type: string, format: uuid }
+        originalFileName: { type: string, example: photo.jpg }
+        sizeBytes: { type: integer, format: int64, example: 512000 }
+        contentType: { type: string, nullable: true, example: image/jpeg }
+        createdAt: { type: string, format: date-time }
         expiresAt: { type: string, format: date-time }
-        isPasswordProtected: { type: boolean }
+        passwordRequired: { type: boolean, example: true }
+
+    DownloadRequest:
+      type: object
+      properties:
+        password:
+          type: string
+          nullable: true
+          description: Requis uniquement si `passwordRequired` est vrai
+
+    MessageResponse:
+      type: object
+      properties:
+        message: { type: string, example: Link expired. }
+
+  responses:
+    Unauthorized:
+      description: "JWT absent, invalide ou expiré (corps vide, en-tête `WWW-Authenticate: Bearer`)"
+    NotFound:
+      description: Fichier introuvable ou n'appartenant pas à l'utilisateur (aucune distinction pour ne pas révéler l'existence du fichier). Corps `ProblemDetails` (`application/problem+json`).
+
+  parameters:
+    StatusFilter:
+      in: query
+      name: status
+      required: false
+      schema: { type: string, enum: [all, active, expired], default: all }
+      description: Filtre sur l'expiration
+    FileId:
+      in: path
+      name: id
+      required: true
+      schema: { type: string, format: uuid }
+    ShareToken:
+      in: path
+      name: token
+      required: true
+      schema: { type: string }
+      description: Token de partage opaque (Base64Url)
 
 paths:
+  /health:
+    get:
+      tags: [System]
+      operationId: getHealth
+      security: []
+      summary: État de l'API (utilisé par le healthcheck Docker et les scripts de déploiement)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+
   /auth/register:
     post:
+      tags: [Auth]
+      operationId: register
+      security: []
       summary: Création de compte (US03)
+      description: Crée l'utilisateur (ASP.NET Core Identity, hachage PBKDF2) et renvoie directement un JWT.
       requestBody:
         required: true
         content:
           application/json:
             schema: { $ref: "#/components/schemas/RegisterRequest" }
       responses:
-        "201": { description: Created }
+        "200":
+          description: Compte créé
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthResponse" }
+        "400":
+          description: Email déjà utilisé, email invalide ou mot de passe trop court (< 8)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/IdentityError" }
 
   /auth/login:
     post:
+      tags: [Auth]
+      operationId: login
+      security: []
       summary: Connexion (US04)
       requestBody:
         required: true
@@ -66,90 +236,194 @@ paths:
             schema: { $ref: "#/components/schemas/LoginRequest" }
       responses:
         "200":
-          description: OK
+          description: Authentifié
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/TokenResponse" }
-
-  /me/files:
-    get:
-      summary: Historique des fichiers (US05)
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: query
-          name: status
-          schema: { type: string, enum: [all, active, expired], default: all }
-      responses:
-        "200": { description: OK }
+              schema: { $ref: "#/components/schemas/AuthResponse" }
+        "401":
+          description: Email inconnu ou mot de passe incorrect (réponse identique dans les deux cas, corps `ProblemDetails`)
 
   /files:
     post:
-      summary: Upload authentifié (US01)
+      tags: [Files]
+      operationId: uploadFile
+      summary: Upload authentifié (US01, US08 tags, US09 mot de passe, US10 expiration)
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
         content:
           multipart/form-data:
-            schema:
-              type: object
-              required: [file]
-              properties:
-                file: { type: string, format: binary }
-                expiresInDays: { type: integer, minimum: 1, maximum: 7, default: 7 }
-                password: { type: string, minLength: 6, nullable: true }
-                tags:
-                  type: array
-                  items: { type: string, maxLength: 30 }
+            schema: { $ref: "#/components/schemas/UploadForm" }
       responses:
-        "201": { description: Created }
-
-  /files/{id}:
-    delete:
-      summary: Suppression d’un fichier (US06)
+        "201":
+          description: Fichier stocké (nom sur disque remplacé par un GUID) et token de partage généré
+          headers:
+            Location:
+              schema: { type: string }
+              description: URL de `GET /files/{id}`
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FileResponse" }
+        "400":
+          description: >
+            Fichier absent, taille > 1 Go, durée hors 1–7 jours, extension interdite
+            (.exe, .bat, .cmd, .com, .msi, .scr, .ps1) ou mot de passe < 6 caractères.
+            Le corps est un message texte, ex. `Forbidden file type.`
+          content:
+            text/plain:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    get:
+      tags: [Files]
+      operationId: listFiles
+      summary: Lister ses fichiers (variante avec champ `isExpired`)
       security: [{ bearerAuth: [] }]
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/StatusFilter"
       responses:
-        "204": { description: Deleted }
+        "200":
+          description: Fichiers de l'utilisateur, du plus récent au plus ancien
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/MyFileListItem" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
 
-  /public/files/{token}:
+  /files/me:
     get:
-      summary: Métadonnées visibles via lien (US02)
+      tags: [Files]
+      operationId: listMyFiles
+      summary: Historique de mes fichiers (US05) — endpoint utilisé par la page « Mon espace »
+      security: [{ bearerAuth: [] }]
       parameters:
-        - in: path
-          name: token
-          required: true
-          schema: { type: string }
+        - $ref: "#/components/parameters/StatusFilter"
+      responses:
+        "200":
+          description: Fichiers de l'utilisateur, du plus récent au plus ancien
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/FileResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /files/{id}:
+    get:
+      tags: [Files]
+      operationId: getFile
+      summary: Métadonnées d'un de mes fichiers
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/FileId"
       responses:
         "200":
           description: OK
           content:
             application/json:
+              schema: { $ref: "#/components/schemas/FileResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Files]
+      operationId: deleteFile
+      summary: Suppression d'un fichier (US06) — disque + base, le lien de partage devient invalide
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/FileId"
+      responses:
+        "204": { description: Supprimé }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /public/files:
+    post:
+      tags: [Public]
+      operationId: uploadAnonymous
+      security: []
+      summary: Upload anonyme, sans compte (US07)
+      description: Réservé aux visiteurs non authentifiés ; mêmes règles de validation que l'upload authentifié. Le fichier n'a pas de propriétaire (`OwnerId` nul) et n'apparaît dans aucun historique.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/UploadForm" }
+      responses:
+        "201":
+          description: Fichier stocké et token de partage généré
+          headers:
+            Location:
+              schema: { type: string }
+              description: URL de `GET /public/files/{token}`
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FileResponse" }
+        "400":
+          description: Fichier absent, taille > 1 Go, durée hors 1–7 jours, extension exécutable interdite ou mot de passe < 6 caractères
+          content:
+            text/plain:
+              schema: { type: string }
+        "403":
+          description: Un utilisateur authentifié doit utiliser `POST /files`
+
+  /public/files/{token}:
+    get:
+      tags: [Public]
+      operationId: getPublicFileMetadata
+      security: []
+      summary: Métadonnées visibles via un lien de partage (US02)
+      parameters:
+        - $ref: "#/components/parameters/ShareToken"
+      responses:
+        "200":
+          description: OK — `passwordRequired` indique si le téléchargement exigera un mot de passe
+          content:
+            application/json:
               schema: { $ref: "#/components/schemas/PublicFileMetadata" }
-        "404": { description: Token invalide }
-        "410": { description: Fichier expiré }
+        "404": { description: Token inconnu (ou fichier supprimé) }
+        "410":
+          description: Lien expiré
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
 
   /public/files/{token}/download:
     post:
-      summary: Télécharger via lien (US02) + password si protégé (US09)
+      tags: [Public]
+      operationId: downloadPublicFile
+      security: []
+      summary: Téléchargement via lien de partage (US02), mot de passe si protégé (US09)
+      description: Méthode POST pour transmettre le mot de passe dans le corps (jamais dans l'URL).
       parameters:
-        - in: path
-          name: token
-          required: true
-          schema: { type: string }
+        - $ref: "#/components/parameters/ShareToken"
       requestBody:
-        required: false
+        required: true
         content:
           application/json:
-            schema:
-              type: object
-              properties:
-                password: { type: string, minLength: 6 }
+            schema: { $ref: "#/components/schemas/DownloadRequest" }
+            examples:
+              sansMotDePasse:
+                value: { password: null }
+              avecMotDePasse:
+                value: { password: "monMotDePasse" }
       responses:
-        "200": { description: File stream }
-        "401": { description: Mot de passe requis/invalide }
-        "404": { description: Token invalide }
-        "410": { description: Fichier expiré }
+        "200":
+          description: Flux binaire du fichier ; `Content-Type` = type MIME enregistré à l'upload (`application/octet-stream` si inconnu)
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              description: "`attachment; filename=\"<nom d'origine>\"`"
+          content:
+            "*/*":
+              schema: { type: string, format: binary }
+        "401":
+          description: Mot de passe requis mais absent, ou mot de passe incorrect
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "404": { description: Token inconnu (ou fichier supprimé) }
+        "410":
+          description: Lien expiré
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }

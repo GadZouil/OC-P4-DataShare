@@ -1,155 +1,112 @@
-# Rapport de Sécurité - DataShare API
+# Sécurité — DataShare
 
-Ce document détaille l'audit de sécurité des dépendances, la politique de gestion des vulnérabilités et les mécanismes de défense implémentés dans l'architecture backend.
-
-## 1. Audit Automatisé des Dépendances (SCA)
-
-Nous utilisons l'analyseur de vulnérabilités natif de .NET pour scanner la chaîne d'approvisionnement logicielle (Supply Chain).
-
-### Protocole d'audit
-*   **Cible :** Packages NuGet (Directs et Transitifs)
-*   **Base de données :** GitHub Advisory Database & NuGet.org
-*   **Fréquence :** À chaque build majeur et avant mise en production.
-*   **Date du dernier audit :** 02/08/2026
-
-### Résultat de l'analyse
-> Commande : `dotnet list package --vulnerable --include-transitive`
-
-✅ **Statut : PAS DE VULNÉRABILITÉ DÉTECTÉE** (après correctif du 02/08/2026)
-
-L'audit du 02/08/2026 avait révélé **1 vulnérabilité de gravité élevée** :
-
-| Package | Version | CVE | Description | Correction |
-|---------|---------|-----|-------------|------------|
-| `Microsoft.OpenApi` | 2.3.12 | [CVE-2026-49451](https://github.com/advisories/GHSA-v5pm-xwqc-g5wc) | Stack overflow (DoS) lors du parsing d'un document OpenAPI contenant une référence de schéma circulaire | Mise à jour vers **2.7.5** (version patchée) |
-
-**Analyse du risque réel :** faible en contexte DataShare — la bibliothèque n'est utilisée que pour *générer* la documentation Swagger, pas pour parser des documents OpenAPI fournis par des tiers. Le correctif a néanmoins été appliqué immédiatement (mise à jour mineure sans rupture, suite de tests verte après mise à jour).
+Ce document décrit les mécanismes de sécurité **réellement implémentés** dans le prototype (avec référence au code), l'audit des dépendances et les décisions prises, ainsi que les points volontairement reportés après le MVP.
 
 ---
 
-## 2. Architecture de Sécurité (Defense in Depth)
+## 1. Gestion des accès
 
-Le backend DataShare n'attend pas que les failles soient trouvées ; il les prévient par design.
+### Authentification (US03 / US04)
 
-### A. Authentification & Identité
-*   **Stateless Authentication :** Utilisation exclusive de JWT (JSON Web Tokens). Le serveur ne stocke pas de session, réduisant la surface d'attaque (Session Hijacking).
-*   **Hachage Robuste :** Les mots de passe sont hachés via **PBKDF2** (implémentation standard ASP.NET Core Identity), rendant les attaques par Rainbow Table impossibles.
-*   **Principe de Moindre Privilège :** Les contrôleurs sont verrouillés par défaut via `[Authorize]`. Seuls les endpoints publics explicites (Login/Register) sont ouverts.
+| Mécanisme | Implémentation | Fichier |
+|---|---|---|
+| Comptes utilisateurs | ASP.NET Core Identity (`AddIdentityCore<AppUser>`), email unique | `Program.cs` |
+| Hachage des mots de passe | PBKDF2 (implémentation Identity `PasswordHasher`), jamais de mot de passe en clair en base | Identity |
+| Politique de mot de passe | 8 caractères minimum (conforme aux spécifications) | `Program.cs` |
+| Session | **JWT stateless** signé HMAC-SHA256, durée de vie 8 h, claims `sub` (id) et `email` | `AuthController.CreateJwt` |
+| Validation du token | Émetteur, audience, signature **et** expiration vérifiés sur chaque requête | `Program.cs` (`TokenValidationParameters`) |
+| Clé de signature | Lue dans la configuration (`Jwt:Key`) ; **l'API refuse de démarrer** si la clé est absente ou fait moins de 32 caractères (256 bits) — plus de clé de repli codée en dur | `Program.cs` |
+| Réponse en cas d'échec de connexion | `401` identique que l'email soit inconnu ou le mot de passe faux (pas d'énumération de comptes) | `AuthController.Login` |
 
-### B. Protection des Données (Fichiers)
-*   **Sanitization des Noms :** Aucun fichier n'est stocké avec son nom d'origine. Ils sont renommés avec un `GUID` pour empêcher les attaques de type **Path Traversal** (ex: `../../etc/passwd`).
-*   **Liste Blanche (Allowlist) :** Seules les extensions strictement nécessaires sont autorisées. Les exécutables (`.exe`, `.sh`, `.bat`) sont rejetés au niveau du code métier.
-*   **Isolation Logique :** Une validation stricte (`User.Identity.Name`) assure qu'un utilisateur ne peut accéder qu'aux fichiers dont il est propriétaire en base de données.
+### Autorisation et isolation des données
 
-### C. Sécurité de l'Infrastructure (Code Level)
-*   **Anti-Injection SQL :** Utilisation stricte d'Entity Framework Core (ORM) qui paramètre toutes les requêtes, neutralisant les injections SQL classiques.
-*   **CORS Restrictif :** La politique Cross-Origin est configurée pour n'accepter que les requêtes provenant du Frontend officiel (à paramétrer selon l'environnement).
+- `FilesController` est décoré `[Authorize]` : sans JWT valide, toutes ses routes répondent `401`.
+- L'identité vient **uniquement du token** (`User.FindFirstValue(ClaimTypes.NameIdentifier)`), jamais d'un paramètre client.
+- Chaque requête privée filtre en base sur `OwnerId == userId` : un utilisateur ne peut ni lire, ni supprimer, ni lister les fichiers d'un autre. L'API répond `404` (et non `403`) pour ne pas révéler l'existence d'un fichier.
+- Ces règles sont couvertes par des tests d'intégration dédiés (`SecurityTests` : lecture/suppression croisée → 404, `/files/me` isolé par utilisateur, endpoints privés → 401 sans token).
+- Les liens publics reposent sur un **token de partage** distinct de l'identifiant technique : 32 octets issus de `RandomNumberGenerator` (CSPRNG), encodés Base64Url, index unique en base. Les métadonnées publiques n'exposent ni le propriétaire, ni le nom stocké, ni le token.
 
----
+### Protection par mot de passe des fichiers (US09)
 
-## 3. Gestion des Secrets et Configuration
-
-Pour éviter les fuites de données sensibles (Hardcoded Secrets) :
-
-1.  **En Développement :** Utilisation de l'outil **User Secrets** de .NET (`secrets.json`). Aucune clé (JWT Key, Connection String) n'est commise dans le dépôt Git.
-2.  **En Production :** Les secrets sont injectés via des **Variables d'Environnement** sécurisées.
-3.  **HTTPS :** L'API force la redirection HTTPS et utilise HSTS (HTTP Strict Transport Security) pour prévenir les attaques Man-in-the-Middle.
-
----
-
-## 4. Plan d'Action en cas de faille
-Si une vulnérabilité est découverte :
-1.  Isolation du serveur concerné.
-2.  Patch du package via NuGet (`dotnet add package [Nom] --version [SafeVersion]`).
-3.  Rotation immédiate de la clé de signature JWT (`Jwt:Key`).
+- Mot de passe optionnel (6 caractères min.), **haché** avec `PasswordHasher<FileItem>` (PBKDF2) — jamais stocké en clair.
+- Transmis dans le **corps** d'une requête `POST .../download` (jamais dans l'URL, donc absent des logs et de l'historique navigateur).
+- Mot de passe manquant ou faux → `401` avec message explicite, et ligne de log `Warning`.
 
 ---
 
-## 5. Validation des Entrées
+## 2. Protection des fichiers
 
-*   **Taille des fichiers :** La taille maximale des uploads est limitée côté backend (configuration Kestrel / `IFormFile`) pour prévenir les attaques par saturation (DoS via gros fichiers).
-*   **Types autorisés :** Une liste blanche d'extensions est appliquée avant tout traitement. Toute extension non reconnue est rejetée avec un code `400 Bad Request`. Les exécutables (`.exe`, `.sh`, `.bat`, `.ps1`) sont explicitement interdits.
-*   **Sanitization des noms de fichiers :** Le nom d'origine du fichier fourni par le client n'est jamais conservé sur le disque. Il est remplacé par un `GUID` généré aléatoirement, éliminant tout risque de Path Traversal (`../../etc/passwd`) ou d'injection via le nom de fichier.
+| Risque | Parade | Fichier |
+|---|---|---|
+| Path traversal (`../../etc/passwd`) | Le nom d'origine n'est **jamais** utilisé sur disque : le fichier est renommé `{GUID}{extension}` ; l'extension est tronquée si > 20 caractères | `LocalFileStorage.SaveAsync` |
+| Diffusion d'exécutables | **Liste noire** d'extensions refusées à l'upload : `.exe .bat .cmd .com .msi .scr .ps1` → `400 Forbidden file type.` | `FilesController.IsForbiddenFile` |
+| Saturation disque (DoS) | Taille max **1 Go** par fichier (`[RequestSizeLimit]`, `MultipartBodyLengthLimit`, `client_max_body_size` nginx) | `Program.cs`, `nginx.conf` |
+| Conservation illimitée | Expiration obligatoire (1 à 7 jours) ; purge quotidienne disque + base par `ExpiredFilesCleanupService` ; liens expirés → `410 Gone` | `Services/` |
+| Stockage hors de la base | Seules les métadonnées sont en PostgreSQL ; le contenu est sur disque dans `Storage/Uploads` (volume Docker) | `LocalFileStorage` |
 
----
-
-## 6. CORS (Cross-Origin Resource Sharing)
-
-*   **Configuration actuelle :** La politique CORS est déclarée dans `Program.cs` via `builder.Services.AddCors()` et activée via `app.UseCors()`.
-*   **Domaines autorisés :** Seul le domaine du frontend officiel est listé dans `WithOrigins(...)`. Toute origine inconnue est bloquée par défaut par le navigateur.
-*   **En développement :** L'origine `http://localhost:[PORT]` est autorisée pour faciliter le développement local. Cette configuration ne doit pas être déployée en production.
+> Choix assumé pour le MVP : une liste noire d'extensions plutôt qu'une liste blanche, pour ne pas bloquer les usages légitimes des freelances (formats variés). Une liste blanche configurable et un scan antivirus sont listés en roadmap (§ 6).
 
 ---
 
-## 7. HTTPS
+## 3. Sécurité applicative
 
-*   **En développement :** L'API tourne en HTTP local (`http://localhost:[PORT]`). Aucun certificat SSL n'est requis dans cet environnement.
-*   **En production :** HTTPS est obligatoire. L'API active `UseHttpsRedirection()` pour rediriger automatiquement tout trafic HTTP vers HTTPS, et `UseHsts()` pour envoyer l'en-tête `Strict-Transport-Security` et prévenir les attaques Man-in-the-Middle (MITM).
-
----
-
-## 8. Audit des dépendances
-
-### Backend (.NET / NuGet)
-
-Commande : `dotnet list package --vulnerable`
-
-**Résultat : aucune vulnérabilité détectée** (après mise à jour de `Microsoft.OpenApi` 2.3.12 → 2.7.5 le 02/08/2026, voir section 1).
-
-Les packages NuGet utilisés (Entity Framework Core 9, ASP.NET Core Identity, Npgsql) sont à jour et sans CVE connue.
-
-### Frontend (npm)
-
-Commande : `npm audit` (exécutée le 31/03/2026)
-
-**Résultat : 2 vulnérabilités détectées (1 low, 1 high)**
-
-| Package | Sévérité | Description | Corrigible |
-|---------|----------|-------------|------------|
-| `qs` 6.7.0–6.14.1 | Low | Bypass arrayLimit en parsing virgule (DoS) | Oui (`npm audit fix`) |
-| `systeminformation` ≤5.30.7 | High | Command Injection via `locate` et `wifi.js` | Oui (`npm audit fix`) |
-
-### Analyse et décisions
-
-- **`qs`** : dépendance transitive (utilisée par Cypress, pas par l'app en production). Risque réel : **nul** en contexte DataShare car qs n'est pas exposé côté serveur. Correctif appliqué via `npm audit fix`.
-- **`systeminformation`** : dépendance de Cypress (outil de test uniquement), **jamais déployée en production**. Risque réel : **nul**. Correctif appliqué via `npm audit fix`.
-- **Backend .NET** : zéro vulnérabilité. L'utilisation d'Entity Framework Core comme ORM exclusif élimine les risques d'injection SQL.
-
-> Les deux vulnérabilités npm concernent des dépendances de développement/test (Cypress) et n'affectent pas l'application déployée.
-
-### Correction appliquée
-
-Les deux vulnérabilités ont été corrigées via `npm audit fix` le 31 mars 2026.
-```
-$ npm audit fix
-changed 2 packages, and audited 176 packages in 1s
-found 0 vulnerabilities
-```
-
-### Ré-audit du 02/08/2026
-
-De nouveaux avis de sécurité ayant été publiés depuis mars, un ré-audit complet a été effectué :
-
-**Frontend (`npm audit`) : 16 vulnérabilités détectées** (1 critique, 12 élevées, 2 modérées, 1 faible), toutes sur des dépendances transitives ou de développement (`axios`, `vite`, `rollup`, `postcss`, `eslint`, etc.).
-
-Corrections appliquées :
-
-1. **Suppression de `react-router-dom`** — dépendance morte (aucun import dans le code source, le routing est assuré par `vue-router`), probablement ajoutée par erreur en début de projet. Sa suppression élimine à elle seule 14 avis de sécurité et allège l'arbre de dépendances.
-2. **`npm audit fix`** — mise à jour des dépendances restantes vers les versions patchées (dont `axios` 1.17+). La mise à jour d'axios a durci le typage des en-têtes de réponse ; une correction TypeScript mineure a été apportée dans `src/api/files.ts` (conversion explicite du `content-type` en chaîne).
-3. **Vérification de non-régression** — `npm run build` (type-check inclus) passe, l'application fonctionne à l'identique.
-
-```
-$ npm audit
-found 0 vulnerabilities
-```
-
-**Statut actuel (02/08/2026) : 0 vulnérabilité côté frontend, 0 vulnérabilité côté backend.**
+- **Injection SQL** : accès aux données exclusivement via Entity Framework Core (requêtes paramétrées). Aucun SQL concaténé.
+- **Validation des entrées** : double validation, côté client (UX immédiate) et côté serveur (autorité) — présence du fichier, taille, durée 1–7 jours, extension, longueur du mot de passe, normalisation des tags (trim, dédoublonnage insensible à la casse, 20 max).
+- **CORS** : politique nommée `frontend`, limitée aux origines de `Cors:AllowedOrigins` (défaut `http://localhost:5173`, le serveur de dev Vite). En Docker, nginx sert le front **et** proxifie `/api` en même origine : CORS n'entre pas en jeu. L'ancienne politique `AllowAnyOrigin` a été retirée.
+- **Secrets** : aucun secret réel dans le dépôt. `appsettings.json` ne contient que des valeurs `CHANGE_ME_*` ; les vraies valeurs viennent des *user-secrets* (`dotnet user-secrets`) en développement et des variables d'environnement (`.env` non versionné, voir `.env.example`) en Docker.
+- **Journalisation** : chaque requête produit une ligne de log structurée (méthode, route, statut, durée, volume) ; les échecs d'authentification sur un fichier protégé sont tracés en `Warning`. Aucune donnée sensible (mot de passe, token de partage complet) n'est journalisée. Voir [PERF.md](./PERF.md) § 3.
+- **Transport** : le prototype est servi en HTTP sur `localhost`. **HTTPS n'est pas activé dans le code** (`UseHttpsRedirection`/`UseHsts` absents) : en production, la terminaison TLS est prévue sur le reverse proxy nginx (certificat Let's Encrypt), ce qui est la pratique standard pour une API conteneurisée derrière un proxy. Voir § 6.
 
 ---
 
-## 9. Améliorations Futures (Roadmap Sécurité)
+## 4. Audit des dépendances (SCA)
 
-*   **Rate Limiting :** Implémenter une limitation du nombre de requêtes par IP (ex : middleware `AspNetCoreRateLimit`) pour prévenir les attaques par force brute sur les endpoints d'authentification.
-*   **Refresh Tokens :** Introduire un système de refresh tokens pour permettre des access tokens JWT de courte durée de vie, réduisant la fenêtre d'exposition en cas de vol de token.
-*   **CSP Headers (Content Security Policy) :** Ajouter des en-têtes `Content-Security-Policy` côté frontend pour restreindre les sources de scripts et prévenir les attaques XSS.
-*   **Scan Antivirus des Uploads :** Intégrer un moteur antivirus (ex: ClamAV via `nClam`) pour analyser automatiquement les fichiers uploadés avant de les stocker, afin de prévenir la distribution de malwares via la plateforme.
+### Protocole
+
+| Cible | Commande | Fréquence |
+|---|---|---|
+| NuGet (directs + transitifs) | `dotnet list package --vulnerable --include-transitive` | À chaque mise à jour de dépendance et avant chaque livraison |
+| npm | `npm audit` (dans `frontend/datashare-front`) | Idem |
+
+### Historique et décisions
+
+| Date | Périmètre | Constat | Décision |
+|---|---|---|---|
+| 31/03/2026 | npm | `qs` (low, bypass `arrayLimit`) et `systeminformation` (high, injection de commande) — dépendances **transitives de Cypress**, jamais déployées | Corrigées par `npm audit fix` (risque réel nul en production, correction immédiate car sans coût) |
+| 02/08/2026 | NuGet | `Microsoft.OpenApi` 2.3.12 — [CVE-2026-49451](https://github.com/advisories/GHSA-v5pm-xwqc-g5wc), stack overflow (DoS) au parsing d'un document OpenAPI à référence circulaire | Risque faible (la lib ne fait que *générer* Swagger) mais **mise à jour vers 2.7.5** : mineure, sans rupture, tests verts |
+| 02/08/2026 | npm | 16 avis (1 critique, 12 élevés) sur des dépendances transitives (`axios`, `vite`, `rollup`, `postcss`, `eslint`) | Suppression de `react-router-dom` (dépendance morte : le routing est `vue-router`) → 14 avis éliminés ; `npm audit fix` pour le reste ; correction TypeScript d'une ligne suite au durcissement d'`axios` ; `npm run build` vert |
+| 13/09/2026 | npm (front) | 4 avis (2 élevés : `js-yaml`, `nanoid` ; 1 modéré : `@humanfs/node` ; 1 faible : `postcss-selector-parser`) — tous sur des dépendances **transitives d'outils de build/lint** (Vite, ESLint, devtools), rien dans le bundle livré | `npm audit fix` (mises à jour de patch), `npm run build` + `npm run lint` verts |
+| 13/09/2026 | npm (Cypress) | 9 avis (6 élevés : `form-data`, `lodash`, `qs`, `tmp`, `uuid`… ; 3 modérés dont `systeminformation`) — dépendances de **Cypress uniquement** (outil de test, jamais déployé) | `npm audit fix` : Cypress 15.10 → 15.21.1, 0 vulnérabilité |
+
+**Statut au 13/09/2026 : 0 vulnérabilité connue (frontend et outillage de test) ; backend : 0 au dernier audit du 02/08/2026.**
+
+- `dotnet list package --vulnerable --include-transitive` : aucun package vulnérable signalé pour `DataShare.Api` et `DataShare.Api.Tests` (02/08/2026).
+- `npm audit` (`frontend/datashare-front` et `frontend`) : `found 0 vulnerabilities` (13/09/2026).
+
+> À relancer avant la soutenance (les bases d'avis évoluent) : voir la section « Audit » du script `scripts/verify.ps1`.
+
+> Cas d'école conservé volontairement dans l'historique Git : le commit `8f5e793 fix(security): patch vulnerable dependencies` montre le traitement complet d'une alerte (analyse du risque réel, correctif, non-régression).
+
+---
+
+## 5. Procédure en cas de vulnérabilité
+
+1. **Qualifier** : la dépendance est-elle utilisée à l'exécution (production) ou seulement en développement/test ? Le code vulnérable est-il atteignable dans DataShare ?
+2. **Corriger** : `dotnet add package <Nom> --version <version corrigée>` ou `npm audit fix` (jamais `--force` sans revue, voir [MAINTENANCE.md](./MAINTENANCE.md)).
+3. **Vérifier** : `dotnet test` + `npm run build` + scénario Cypress critique.
+4. **Documenter** la décision (corrigée / acceptée / ignorée et pourquoi) dans le tableau du § 4.
+5. Si un **secret** a pu fuiter : rotation immédiate de `Jwt:Key` (invalide tous les tokens en cours) et du mot de passe PostgreSQL.
+
+---
+
+## 6. Roadmap sécurité (hors périmètre MVP)
+
+| Amélioration | Intérêt | Piste technique |
+|---|---|---|
+| **HTTPS / HSTS** | Confidentialité des JWT et mots de passe en transit hors localhost | Terminaison TLS nginx + `UseHttpsRedirection()`/`UseHsts()` derrière `ForwardedHeaders` |
+| **Rate limiting** sur `/auth/login` et `/public/files/{token}/download` | Freiner la force brute sur les mots de passe | Middleware natif `AddRateLimiter` (.NET 7+), politique par IP |
+| **Refresh tokens** | Réduire la durée de vie des JWT (8 h aujourd'hui) sans dégrader l'UX | Table de refresh tokens révocables |
+| **Liste blanche d'extensions / vérification MIME réelle** | Renforcer le filtrage des fichiers | Détection par signature (magic bytes) |
+| **Scan antivirus des uploads** | Éviter la diffusion de malwares via la plateforme | ClamAV (`nClam`) en tâche de fond avant activation du lien |
+| **En-têtes de sécurité** (CSP, `X-Content-Type-Options`, `Referrer-Policy`) | Réduire la surface XSS côté front | Configuration nginx |
+| **Chiffrement au repos** | Protéger les fichiers si le disque est compromis | Chiffrement côté stockage (implémentation `IFileStorage` dédiée) |

@@ -29,7 +29,14 @@ Le prompt complet est disponible dans [`IA_Instructions.txt`](./IA_Instructions.
 - `src/views/UploadView.vue`
 - `src/views/MeView.vue`
 - `src/styles/datashare.css`
-- `src/api/files.ts`
+- (`src/api/files.ts` était autorisé « si nécessaire » : l'envoi des tags en `FormData` existait déjà, aucune modification)
+
+### Traçabilité Git
+
+| Commit | Auteur | Contenu |
+|---|---|---|
+| `56f411d` `feat(ai): add tags UI and filtering` | Code produit par l'IA, commité tel quel après lecture | Saisie de tags (chips), affichage dans « Mon espace », filtre local |
+| `a8c23fc` `fix(tags): show clear UI errors for empty/too long/duplicate tags` | Revue humaine | Messages d'erreur utilisateur, validation renforcée |
 
 ## 3. Supervision et corrections humaines
 
@@ -46,6 +53,11 @@ Après réception du code IA, les corrections suivantes ont été apportées man
 3. Identification des lacunes UX (aucun message d'erreur pour l'utilisateur)
 4. Correction et commit séparé pour traçabilité
 
+### Points de vigilance vérifiés lors de la revue
+- **Sécurité** : le back reste l'autorité (normalisation et déduplication des tags aussi côté API, `Take(20)`) ; l'IA n'a touché ni au back, ni à l'authentification, conformément à la consigne.
+- **Maintenabilité** : pas de nouvelle dépendance, styles ajoutés dans `datashare.css` avec le préfixe `ds-` existant, logique de tags isolée dans des fonctions (`addTag`, `removeTag`).
+- **Conformité aux maquettes** : chips simples reprenant les couleurs de la charte Figma.
+
 ## 4. Autres usages de l'IA
 
 | Usage | Détail |
@@ -55,6 +67,7 @@ Après réception du code IA, les corrections suivantes ont été apportées man
 | Architecture | Conseils sur l'organisation Services/Models/Controllers |
 | Recherche technique | Bonnes pratiques .NET, Vue 3, PostgreSQL — remplace efficacement Google/Stack Overflow |
 | Documentation | Assistance rédaction des fichiers .md techniques |
+| Revue finale avant soutenance (09/2026) | Audit de cohérence code ↔ documentation (OpenAPI périmé, SECURITY.md décrivant des mécanismes absents du code), propositions de tests de sécurité (isolation entre utilisateurs) et de logs structurés, relecture du support de présentation. Chaque proposition a été relue, exécutée (`dotnet test`, `npm run build`) et validée avant commit. |
 
 L'IA s'est révélée particulièrement pratique pour **l'audit**, **les conseils d'architecture** et **les recherches techniques**, où elle remplace efficacement une recherche internet classique avec un contexte projet déjà chargé.
 

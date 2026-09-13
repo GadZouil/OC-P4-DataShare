@@ -1,6 +1,6 @@
 # DataShare API Reference
 
-> Documentation générée à partir du code source. Swagger UI disponible en développement sur http://localhost:5000/swagger
+> Documentation rédigée à partir du code source (`backend/DataShare.Api/Controllers`). Contrat machine : [`openapi.yaml`](./openapi.yaml). Swagger UI disponible lorsque l'API tourne en environnement *Development* (`dotnet run`) sur http://localhost:5180/swagger.
 
 ---
 
@@ -46,7 +46,7 @@ Le token JWT est obtenu via `POST /api/auth/register` ou `POST /api/auth/login`.
 
 | Code | Raison |
 |---|---|
-| `400 Bad Request` | Email déjà utilisé, mot de passe trop faible ou champs manquants |
+| `400 Bad Request` | Email déjà utilisé (`DuplicateUserName`) ou mot de passe de moins de 8 caractères (`PasswordTooShort`) : corps JSON = tableau d'erreurs Identity `[{ "code": "PasswordTooShort", "description": "Passwords must be at least 8 characters." }]`. Champs manquants : `ValidationProblemDetails` |
 
 ---
 
@@ -78,7 +78,7 @@ Le token JWT est obtenu via `POST /api/auth/register` ou `POST /api/auth/login`.
 
 | Code | Raison |
 |---|---|
-| `401 Unauthorized` | Email introuvable ou mot de passe incorrect |
+| `401 Unauthorized` | Email introuvable ou mot de passe incorrect (corps `ProblemDetails`, réponse identique dans les deux cas pour ne pas révéler l'existence du compte) |
 
 ---
 
@@ -123,7 +123,7 @@ Ces endpoints nécessitent un token JWT valide.
 
 | Code | Raison |
 |---|---|
-| `400 Bad Request` | Fichier absent, taille dépassée, durée invalide, type de fichier interdit (`.exe`, `.bat`, `.cmd`, `.com`, `.msi`, `.scr`, `.ps1`), mot de passe trop court |
+| `400 Bad Request` | Corps texte brut (`text/plain`), un message parmi : `File is required.`, `File exceeds 1 GB.`, `ExpiresInDays must be between 1 and 7.`, `Forbidden file type.` (`.exe`, `.bat`, `.cmd`, `.com`, `.msi`, `.scr`, `.ps1`), `Password must be at least 6 characters.` |
 | `401 Unauthorized` | Token JWT absent ou invalide |
 
 ---
@@ -175,7 +175,7 @@ Ces endpoints nécessitent un token JWT valide.
 |---|---|
 | **Méthode** | `GET` |
 | **Route** | `/api/files/me?status=all\|active\|expired` |
-| **Description** | Variante de listing des fichiers de l'utilisateur connecté (même comportement que `GET /api/files`). |
+| **Description** | Variante de listing des fichiers de l'utilisateur connecté, utilisée par le front « Mon espace » (même filtre `status`, mais sans le champ `isExpired`). |
 | **Auth requise** | Oui |
 
 **Paramètres de requête :**
@@ -184,7 +184,7 @@ Ces endpoints nécessitent un token JWT valide.
 |---|---|---|---|
 | `status` | `all`, `active`, `expired` | `all` | Filtre les fichiers selon leur expiration |
 
-**Réponse succès — `200 OK` :** Même structure que `GET /api/files`.
+**Réponse succès — `200 OK` :** Même structure que `GET /api/files`, **sans** le champ `isExpired` (le front déduit l'expiration de `expiresAt`).
 
 **Codes d'erreur :**
 
@@ -300,7 +300,7 @@ Ces endpoints sont accessibles sans authentification via un token de partage opa
 
 | Code | Raison |
 |---|---|
-| `400 Bad Request` | Fichier absent, taille dépassée, durée invalide, mot de passe trop court |
+| `400 Bad Request` | Corps texte brut, mêmes messages que `POST /api/files` : `File is required.`, `File exceeds 1 GB.`, `ExpiresInDays must be between 1 and 7.`, `Forbidden file type.`, `Password must be at least 6 characters.` |
 | `403 Forbidden` | L'utilisateur est déjà authentifié |
 
 ---
@@ -337,8 +337,8 @@ Ces endpoints sont accessibles sans authentification via un token de partage opa
 
 | Code | Raison |
 |---|---|
-| `404 Not Found` | Token inconnu |
-| `410 Gone` | Lien expiré |
+| `404 Not Found` | Token inconnu (corps `ProblemDetails`) |
+| `410 Gone` | Lien expiré — corps `{ "message": "Link expired." }` |
 
 ---
 
@@ -357,22 +357,40 @@ Ces endpoints sont accessibles sans authentification via un token de partage opa
 |---|---|---|
 | `token` | `string` | Token de partage opaque |
 
-**Body (JSON) — optionnel si le fichier n'est pas protégé :**
+**Body (JSON) — obligatoire (au minimum `{}` ou `{ "password": null }`) ; `password` n'est requis que si le fichier est protégé :**
 ```json
 {
   "password": "monMotDePasse"
 }
 ```
 
-**Réponse succès — `200 OK` :** Stream binaire du fichier avec les headers `Content-Type` et `Content-Disposition` appropriés.
+**Réponse succès — `200 OK` :** Stream binaire du fichier. `Content-Type` = type MIME enregistré à l'upload (`application/octet-stream` si inconnu), `Content-Disposition: attachment; filename=<nom d'origine>`.
 
 **Codes d'erreur :**
 
 | Code | Raison |
 |---|---|
-| `401 Unauthorized` | Mot de passe requis mais absent, ou mot de passe incorrect |
-| `404 Not Found` | Token inconnu |
-| `410 Gone` | Lien expiré |
+| `401 Unauthorized` | Mot de passe requis mais absent (`{ "message": "Password required." }`) ou incorrect (`{ "message": "Invalid password." }`) |
+| `404 Not Found` | Token inconnu ou fichier supprimé (corps `ProblemDetails`) |
+| `410 Gone` | Lien expiré (`{ "message": "Link expired." }`) |
+
+---
+
+## 4. System — `/api/health`
+
+### GET `/api/health`
+
+| Champ | Valeur |
+|---|---|
+| **Méthode** | `GET` |
+| **Route** | `/api/health` |
+| **Description** | État de l'API, utilisé par le healthcheck Docker Compose et les scripts de déploiement (défini dans `Program.cs`). |
+| **Auth requise** | Non |
+
+**Réponse succès — `200 OK` :**
+```json
+{ "status": "ok" }
+```
 
 ---
 
@@ -390,3 +408,4 @@ Ces endpoints sont accessibles sans authentification via un token de partage opa
 | `POST` | `/api/public/files` | Upload anonyme | Non (interdit si connecté) |
 | `GET` | `/api/public/files/{token}` | Métadonnées via lien | Non |
 | `POST` | `/api/public/files/{token}/download` | Télécharger via lien | Non |
+| `GET` | `/api/health` | État de l'API (healthcheck) | Non |

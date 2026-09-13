@@ -1,139 +1,162 @@
-# Rapport de Performance - DataShare
+# Performance — DataShare
 
-Ce document présente les résultats des tests de charge sur l'API et le budget de performance défini pour le frontend.
-
----
-
-## 0. Budget Performance
-
-Objectifs cibles à respecter en production :
-
-| Indicateur | Cible |
-| :--- | :--- |
-| **Temps de réponse API (p95)** | < 200 ms |
-| **Upload d'un fichier de 10 MB** | < 3 s |
-| **Time to Interactive (TTI) — frontend** | < 2 s |
-
-Ces seuils servent de référence pour valider chaque mise en production et orienter les décisions d'optimisation.
+Budget de performance, résultats des tests de charge (k6) et d'audit navigateur (Lighthouse), journalisation structurée des métriques clés et pistes d'optimisation.
 
 ---
 
-## 1. Performance Backend (API)
+## 1. Budget de performance
 
-**Objectif :** Valider la stabilité de l'upload de fichiers sous charge concurrente.
-
-### Méthodologie
-*   **Outil :** [k6](https://k6.io/)
-*   **Environnement :** Local (Docker)
-*   **Scénario :** 20 utilisateurs virtuels (VUs) uploadant simultanément des fichiers pendant 30 secondes.
-*   **Script :** `perf/k6-upload-test.js` (Auth JWT + POST /api/Files)
-
-### Résultats du Test de Charge
-
-> **Date du test :** 17 Février 2026
-> **Commande :** `k6 run perf/k6-upload-test.js`
-
-| Métrique | Valeur Obtenue | Objectif | Statut |
-| :--- | :--- | :--- | :--- |
-| **Itérations Totales** | 500 uploads | > 100 | ✅ Succès |
-| **Requêtes / seconde** | ~32 /s | > 10/s | ✅ Succès |
-| **Temps Moyen (Avg)** | 107.9 ms | < 500 ms | ✅ Excellent |
-| **P95 (95% des cas)** | 125.19 ms | < 2000 ms | ✅ Excellent |
-| **Taux d'Erreur** | 0.00% | < 1% | ✅ Parfait |
-| **Données Transférées** | 52 MB | - | Info |
-
-### Analyse
-Le serveur encaisse parfaitement la charge sans dégradation notable. Le temps de réponse moyen de ~100ms pour un upload complet (y compris l'écriture disque) démontre une excellente gestion des I/O asynchrones par .NET 8.
+| Indicateur | Cible | Pourquoi |
+|---|---|---|
+| **API — P95 upload 100 Ko** (`POST /api/files`) | < 500 ms | Ressenti « instantané » pour un fichier courant |
+| **API — P95 connexion** (`POST /api/auth/login`) | < 500 ms | Le hachage PBKDF2 est volontairement coûteux ; il ne doit pas devenir un goulot |
+| **API — taux d'erreur sous charge** | < 1 % | Stabilité de la démo et du service |
+| **Front — bundle JS initial (gzip)** | < 100 Ko | Chargement rapide sur mobile / réseau moyen |
+| **Front — bundle CSS (gzip)** | < 20 Ko | idem |
+| **Front — Lighthouse Performance** | ≥ 90 | Référence standard |
+| **Front — LCP** | < 2,5 s | Seuil « bon » des Core Web Vitals |
+| **Front — CLS** | < 0,1 | Pas de saut de mise en page |
+| **Front — TBT** | < 200 ms | Interface réactive |
 
 ---
 
-## 2. Budget de Performance Frontend (Vue.js)
+## 2. Backend — test de charge k6
 
-Afin de garantir une expérience utilisateur fluide, les limites suivantes ont été définies pour l'application client.
+### Scripts
 
-### Métriques Cibles (Lighthouse / Network)
+| Script | Scénario | Compte de test |
+|---|---|---|
+| `perf/k6-upload-test.js` | 20 utilisateurs virtuels × 30 s, chaque itération = 1 upload de 100 Ko (JWT) | Créé automatiquement dans `setup()` |
+| `perf/k6-login-test.js` | 20 VU × 30 s, chaque itération = 1 connexion | idem |
 
-| Métrique | Budget Cible | Justification |
-| :--- | :--- | :--- |
-| **Bundle Size (Gzipped)** | < 350 KB | Chargement rapide sur réseau mobile (3G/4G). |
-| **FCP (First Contentful Paint)** | < 1.5 s | Affichage rapide des éléments visuels. |
-| **LCP (Largest Contentful Paint)** | < 2.5 s | Temps pour voir le contenu principal. |
-| **CLS (Layout Shift)** | < 0.1 | Stabilité visuelle (pas d'éléments qui sautent). |
+```bash
+# API Docker (défaut : http://localhost:5000)
+k6 run perf/k6-upload-test.js
+# API lancée avec dotnet run, plus de charge, fichiers plus gros
+k6 run -e BASE_URL=http://localhost:5180 -e VUS=50 -e DURATION=60s -e FILE_KB=1024 perf/k6-upload-test.js
+```
 
-### Optimisations mises en place
-*   Utilisation de **Vite** pour un bundling optimisé (Tree-shaking).
-*   Chargement asynchrone des composants (Lazy Loading sur les routes Vue Router).
-*   Assets CSS minifiés automatiquement en production.
+Seuils k6 (le run échoue s'ils sont dépassés) : `http_req_duration p(95) < 2000 ms`, `http_req_failed < 1 %`, checks upload > 99 %.
+
+### Résultats — upload (17/02/2026, machine de développement, API + PostgreSQL en Docker)
+
+| Métrique | Valeur | Cible | Statut |
+|---|---|---|---|
+| Itérations (uploads) | 500 | > 100 | ✅ |
+| Débit | ~32 req/s | > 10 req/s | ✅ |
+| Temps moyen | 107,9 ms | < 500 ms | ✅ |
+| **P95** | **125,2 ms** | < 500 ms | ✅ |
+| Taux d'erreur | 0,00 % | < 1 % | ✅ |
+| Données transférées | 52 Mo | — | — |
+
+**Analyse** : à 20 utilisateurs simultanés, l'upload complet (authentification JWT, validation, écriture disque, insertion PostgreSQL) reste autour de 100 ms sans dégradation sur 30 s. Les I/O sont entièrement asynchrones (`CopyToAsync`, `SaveChangesAsync`) : le serveur n'immobilise pas de thread pendant l'écriture. La limite réelle est le disque et la bande passante, pas le code applicatif.
+
+> Le script ayant été rendu autonome le 13/09/2026 (création du compte dans `setup()`, `BASE_URL` paramétrable), la logique de mesure est inchangée ; relancer `k6 run perf/k6-upload-test.js` avant la soutenance pour disposer de chiffres frais sur la machine de démo.
 
 ---
 
-## 3. Métriques Frontend (Lighthouse)
+## 3. Logs structurés et métriques clés
 
-### Comment mesurer
+### Ce qui est journalisé
 
-1. Lancer l'application en mode production (`npm run build` puis `npm run preview`).
-2. Ouvrir Chrome DevTools → onglet **Lighthouse**.
-3. Sélectionner : **Performance**, **Accessibility**, **Best Practices**, **SEO** → « Analyze page load ».
-4. Ou via CLI : `npx lighthouse http://localhost:4173 --output=html --output-path=./lighthouse-report.html`
+Depuis le 13/09/2026, l'API produit des **logs structurés** (placeholders nommés capturés comme propriétés par `ILogger`) :
 
-### Scores cibles
+| Source | Événement | Propriétés |
+|---|---|---|
+| `RequestMetricsMiddleware` (en tête du pipeline) | **Chaque requête HTTP** | `Method`, `Path`, `StatusCode`, `ElapsedMs`, `RequestBytes`, `ResponseBytes` (en-têtes `Content-Length` : taille réelle pour les uploads et les téléchargements, 0 pour les réponses JSON envoyées en *chunked*) — niveau `Information` (2xx/3xx), `Warning` (4xx), `Error` (5xx, avec la trace de l'exception) |
+| `FilesController` / `PublicFilesController` | Upload réussi | `FileId`, `SizeBytes`, `ContentType`, `UserId` (ou anonyme), `ExpiresAt`, `PasswordProtected`, `TagCount` |
+| `PublicFilesController` | Téléchargement via lien | `FileId`, `SizeBytes`, `ContentType` |
+| `PublicFilesController` | Mot de passe refusé | `FileId` (niveau `Warning`) |
+| `FilesController` | Suppression | `FileId`, `SizeBytes`, `UserId` |
+| `ExpiredFilesCleanupService` | Purge quotidienne | `Count` de fichiers purgés, erreurs de stockage |
 
-| Catégorie | Score cible |
-| :--- | :--- |
-| **Performance** | ≥ 90 |
-| **Accessibility** | ≥ 90 |
-| **Best Practices** | ≥ 90 |
-| **SEO** | ≥ 80 |
+Format : **JSON une ligne par événement** hors développement (conteneur Docker, `AddJsonConsole`), texte lisible avec `dotnet run`. Exemple simplifié (la sortie réelle contient aussi la clé `{OriginalFormat}` dans `State`) :
 
-### Résultats Lighthouse (audit du 31/03/2026)
+```json
+{"Timestamp":"2026-09-13T14:02:11.318Z","EventId":0,"LogLevel":"Information","Category":"DataShare.Api.Controllers.FilesController","Message":"File uploaded 3fa85f64-... (204800 bytes, application/pdf) by user 9b1d..., expires 09/20/2026 14:02:11 +00:00, passwordProtected=True, tags=2","State":{"FileId":"3fa85f64-...","SizeBytes":204800,"ContentType":"application/pdf","UserId":"9b1d...","ExpiresAt":"2026-09-20T14:02:11+00:00","PasswordProtected":true,"TagCount":2}}
+{"Timestamp":"2026-09-13T14:02:11.322Z","EventId":0,"LogLevel":"Information","Category":"DataShare.Api.Middleware.RequestMetricsMiddleware","Message":"HTTP POST /api/files -> 201 in 96.4 ms (request 205112 B, response 0 B)","State":{"Method":"POST","Path":"/api/files","StatusCode":201,"ElapsedMs":96.4,"RequestBytes":205112,"ResponseBytes":0}}
+```
 
-| Catégorie | Score | Objectif | Statut |
-|-----------|-------|----------|--------|
-| **Performance** | 96 | ≥ 90 | ✅ |
-| **Accessibility** | 76 | ≥ 90 | ⚠️ En dessous de l'objectif |
-| **Best Practices** | 100 | ≥ 90 | ✅ |
-| **SEO** | 82 | ≥ 80 | ✅ |
+### Comment les exploiter
 
-**Métriques détaillées :**
+```bash
+# Suivre les métriques en direct
+docker compose logs -f api
 
-| Métrique | Valeur | Budget |
-|----------|--------|--------|
-| FCP (First Contentful Paint) | 2.1 s | < 1.5 s ⚠️ |
-| LCP (Largest Contentful Paint) | 2.3 s | < 2.5 s ✅ |
-| Total Blocking Time | 0 ms | < 200 ms ✅ |
-| CLS (Cumulative Layout Shift) | 0.001 | < 0.1 ✅ |
-| Speed Index | 2.1 s | — |
+# Temps de réponse des uploads (P95 approximatif avec les outils standard)
+docker compose logs api | grep '"Path":"/api/files"' | grep '"Method":"POST"' \
+  | grep -o '"ElapsedMs":[0-9.]*' | cut -d: -f2 | sort -n | awk '{a[NR]=$1} END {print "n="NR, "p95="a[int(NR*0.95)]" ms"}'
 
-**Analyse :**
-- Le score Accessibility (76) est en dessous de l'objectif de 90. Les améliorations prioritaires concernent les contrastes de couleurs et les attributs ARIA manquants.
-- Le FCP (2.1s) dépasse légèrement le budget de 1.5s — optimisable via le préchargement des fonts et la réduction du CSS bloquant.
-- Le score Performance (96) et Best Practices (100) sont excellents.
+# Volume total transféré (octets) sur la période
+docker compose logs api | grep '"SizeBytes"' | grep -o '"SizeBytes":[0-9]*' | cut -d: -f2 | awk '{s+=$1} END {print s" octets"}'
+
+# Erreurs 4xx/5xx
+docker compose logs api | grep -E '"LogLevel":"(Warning|Error)"'
+```
+
+En production, ces lignes JSON se branchent sans transformation sur un collecteur (Seq, Grafana Loki, ELK) pour obtenir dashboards et alertes (P95 par route, taux d'erreur, volume par jour).
+
+### Métriques de référence par endpoint
+
+| Endpoint | Source | Moyenne | P95 |
+|---|---|---|---|
+| `POST /api/files` (100 Ko) | k6, 20 VU (17/02/2026) | ~108 ms | ~125 ms |
+| `POST /api/auth/login` | `perf/k6-login-test.js` | à mesurer sur la machine de démo (`k6 run perf/k6-login-test.js`) | — |
+| `GET /api/files/me` | logs `RequestMetricsMiddleware` | requête indexée (`OwnerId`), quelques ms sur une base de démo | — |
+| `POST /api/public/files/{token}/download` | logs `RequestMetricsMiddleware` | dominé par la taille du fichier (streaming) | — |
+
+---
+
+## 4. Frontend — budget et résultats
+
+### Poids du bundle (build de production, 13/09/2026, Vite 7)
+
+| Fichier | Brut | Gzip | Budget | Statut |
+|---|---|---|---|---|
+| `index-*.js` (Vue, router, Pinia, Axios + vues initiales) | 149,0 Ko | **57,0 Ko** | < 100 Ko | ✅ |
+| `index-*.css` (charte Figma) | 18,2 Ko | **3,8 Ko** | < 20 Ko | ✅ |
+| `MeView-*.js` (lazy) | 8,8 Ko | 2,9 Ko | — | chargé à la demande |
+| `UploadView-*.js` (lazy) | 5,5 Ko | 2,4 Ko | — | chargé à la demande |
+| `DownloadView-*.js` (lazy) | 2,6 Ko | 1,4 Ko | — | chargé à la demande |
+| **Total initial (HTML + JS + CSS)** | | **≈ 61 Ko gzip** | | ✅ |
+
+Optimisations en place : tree-shaking et minification Vite, **lazy loading** des vues Upload / Download / Mon espace (`() => import(...)` dans le routeur), CSS unique minifié, polices Google en `preconnect`.
+
+### Lighthouse (audit du 31/03/2026, build de production servi par `vite preview`)
+
+| Catégorie | Score | Cible | Statut |
+|---|---|---|---|
+| Performance | **96** | ≥ 90 | ✅ |
+| Accessibility | **76** | ≥ 90 | ⚠️ |
+| Best Practices | **100** | ≥ 90 | ✅ |
+| SEO | **82** | ≥ 80 | ✅ |
+
+| Métrique | Valeur | Budget | Statut |
+|---|---|---|---|
+| FCP | 2,1 s | < 1,5 s | ⚠️ |
+| LCP | 2,3 s | < 2,5 s | ✅ |
+| TBT | 0 ms | < 200 ms | ✅ |
+| CLS | 0,001 | < 0,1 | ✅ |
+| Speed Index | 2,1 s | — | — |
 
 ![Scores Lighthouse](docs/lighthouse-scores.png)
 
----
+**Analyse et actions**
 
-## 4. Métriques Backend (temps de réponse par endpoint)
-
-Les temps de réponse moyens observés proviennent des logs applicatifs et des tests k6 décrits en section 1.
-
-| Endpoint | Méthode | Temps moyen | P95 | Source |
-| :--- | :--- | :--- | :--- | :--- |
-| `POST /api/Files` (upload) | POST | ~107 ms | ~125 ms | Test k6 (17/02/2026) |
-| `GET /api/files/me` | GET | À mesurer | À mesurer | Logs / k6 |
-| `POST /api/auth/login` | POST | À mesurer | À mesurer | Logs / k6 |
-
-> Compléter ce tableau en ajoutant un scénario k6 ciblant les endpoints GET, ou en consultant les logs structurés du serveur .NET (`app.UseSerilogRequestLogging()` ou middleware de timing).
+- **Accessibility 76** : les contrastes de couleurs proviennent directement de la charte Figma fournie (texte clair sur dégradé orangé) ; le point est remonté à l'UX designer plutôt que corrigé unilatéralement côté développement. Les éléments corrigibles sans toucher la charte ont été traités le 13/09/2026 : attribut `lang="fr"`, titre de page et meta description (l'ancien `index.html` Vite avait `lang=""` et le titre « Vite App », deux audits Lighthouse en échec). Audit à relancer.
+- **FCP 2,1 s** : dû au chargement bloquant des polices Google Fonts. Piste : auto-héberger les polices (`font-display: swap`) ou précharger la police principale.
+- Reproduire : `npm run build && npm run preview` puis Chrome DevTools → Lighthouse, ou `npx lighthouse http://localhost:4173 --output=html --output-path=docs/lighthouse-report.html`.
 
 ---
 
-## 6. Axes d'Amélioration
+## 5. Pistes d'optimisation (par ordre d'impact estimé)
 
-Pistes d'optimisation non encore implémentées, classées par impact estimé :
-
-*   **Cache Redis** — Mettre en cache les réponses fréquentes (ex. `GET /api/files/me`) pour réduire la charge sur la base de données. TTL de 30 à 60 secondes selon la fraîcheur requise.
-*   **Compression gzip / Brotli** — Activer la compression des réponses HTTP côté serveur .NET (`app.UseResponseCompression()`) pour réduire le poids des réponses JSON et des assets.
-*   **CDN** — Servir les fichiers statiques frontend (JS/CSS/images) et les fichiers uploadés via un CDN (ex. Cloudflare, Azure CDN) afin de réduire la latence réseau pour les utilisateurs distants.
-*   **Pagination côté serveur** — Si la liste de fichiers (`/api/files/me`) venait à croître, implémenter une pagination curseur ou offset côté API plutôt que de filtrer côté client.
-*   **Index base de données** — Vérifier la présence d'index sur les colonnes fréquemment filtrées (ex. `UserId`, `CreatedAt`) dans la table des fichiers.
-*   **Optimisation des images** — Générer des miniatures et servir des formats modernes (WebP/AVIF) pour les previews de fichiers image.
+| Piste | Gain attendu | Effort |
+|---|---|---|
+| **Streaming upload** sans mise en tampon complète (`IFormFile` charge le fichier avant l'action) — lecture multipart en flux pour les gros fichiers | Mémoire serveur constante sur 1 Go | Moyen |
+| **Compression des réponses** (`UseResponseCompression`) | JSON `/files/me` 3–5× plus léger | Faible |
+| **Pagination** de `/files/me` (curseur `createdAt`) | Temps de réponse stable au-delà de quelques centaines de fichiers | Faible |
+| **Index composite** `(OwnerId, CreatedAt DESC)` sur `Files` | Tri côté base sans scan | Faible |
+| **Polices auto-hébergées** | FCP < 1,5 s | Faible |
+| **Stockage objet (S3/MinIO) + CDN** derrière `IFileStorage` | Téléchargements servis hors de l'API, scalabilité horizontale | Moyen |
+| **Cache court** (30–60 s) sur `/files/me` | Moins de requêtes SQL en cas de rafraîchissements répétés | Faible |

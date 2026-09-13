@@ -1,167 +1,150 @@
-# Guide de Maintenance & Opérations — DataShare API
+# Maintenance & exploitation — DataShare
 
-## 1. Gestion du Service (Docker)
+Procédures pour faire tourner, sauvegarder, mettre à jour et corriger le prototype. Public visé : un développeur qui reprend le projet.
 
-L'application complète (base de données, API backend, frontend) se lance via Docker Compose.
+---
 
-### Lancement complet
+## 1. Exploitation (Docker Compose)
+
+La stack complète (PostgreSQL, API, front nginx) se pilote depuis la racine du repo. Les secrets sont lus dans un fichier `.env` (copie de `.env.example`, jamais versionné).
 
 ```bash
-docker-compose up -d        # Lance tout (db, api, frontend)
-docker-compose logs -f api  # Voir les logs API
-docker-compose down         # Arrêter tous les services
+docker compose up -d --build      # construire et lancer les 3 services
+docker compose ps                 # état + healthchecks (db, api)
+docker compose logs -f api        # logs structurés JSON de l'API
+docker compose down               # arrêter (les données et les fichiers sont conservés dans les volumes)
+docker compose down -v            # arrêter ET effacer base + fichiers uploadés (reset complet)
 ```
 
-### Démarrage et Arrêt (détail par service)
+Scripts équivalents : `scripts/deploy.ps1` / `scripts/deploy.sh` (vérifient les prérequis, lancent la stack, attendent `GET /api/health`) — option `-Reset` / `--reset` pour repartir d'une base vierge.
+
+| Service | Conteneur | Port hôte | Persistance |
+|---|---|---|---|
+| PostgreSQL 16 | `oc-p4-datashare-postgres` | 5433 | volume `datashare_pg` |
+| API ASP.NET Core 9 | `oc-p4-datashare-api` | 5000 | volume `datashare_uploads` (fichiers, `/app/Storage/Uploads`) |
+| Front (nginx) | `oc-p4-datashare-frontend` | 80 | — |
+
+**Migrations de schéma** : appliquées automatiquement au démarrage de l'API (`Database.MigrateAsync()` dans `Program.cs`). Aucune commande manuelle après un `docker compose up` ou un `--reset`. Pour créer une nouvelle migration en développement : `cd backend/DataShare.Api && dotnet ef migrations add <Nom>`.
+
+### Développement local (hors Docker)
 
 ```bash
-# Lancer uniquement la base de données
-docker-compose up -d db
-
-# Voir les logs PostgreSQL
-docker logs -f oc-p4-datashare-postgres
-
-# Lancer le backend en développement local (hors Docker)
-cd backend/DataShare.Api && dotnet run
-
-# Lancer le frontend en développement local (hors Docker)
-cd frontend/datashare-front && npm run dev
+docker compose up -d db                      # base seule (port 5433)
+cd backend/DataShare.Api && dotnet run       # API : http://localhost:5180 (Swagger : /swagger), migrations auto
+cd frontend/datashare-front && npm run dev   # front : http://localhost:5173
 ```
 
-## 2. Base de Données (PostgreSQL)
+---
 
-Les données sont persistées dans un volume Docker nommé `datashare_pg`.
+## 2. Sauvegarde et restauration
 
-### Sauvegarde (Backup)
+### Base de données
+
+```powershell
+.\scripts\db-backup.ps1                                   # -> backups\datashare_backup_<date>.sql
+.\scripts\db-restore.ps1 -BackupFile .\backups\datashare_backup_2026-09-13_100000.sql
+```
+
+Équivalent Linux/macOS :
 
 ```bash
-# Exporter la base dans un fichier daté
 docker exec -t oc-p4-datashare-postgres pg_dump -U datashare datashare > backup_$(date +%F).sql
+docker exec -i oc-p4-datashare-postgres psql -U datashare datashare < backup_2026-09-13.sql
 ```
 
-### Restauration (Restore)
+### Fichiers uploadés
+
+Les fichiers vivent dans le volume `datashare_uploads`. Sauvegarde/restauration du volume :
 
 ```bash
-# Restaurer depuis un fichier backup
-docker exec -i oc-p4-datashare-postgres psql -U datashare datashare < backup_2025-01-15.sql
+docker run --rm -v oc-p4-datashare_datashare_uploads:/data -v "$PWD/backups:/backup" alpine tar czf /backup/uploads_$(date +%F).tgz -C /data .
+docker run --rm -v oc-p4-datashare_datashare_uploads:/data -v "$PWD/backups:/backup" alpine tar xzf /backup/uploads_2026-09-13.tgz -C /data
 ```
 
-### Réinitialisation complète
+> Base et fichiers doivent être sauvegardés **ensemble** (les métadonnées référencent les noms stockés). Fréquence recommandée : quotidienne en production, avant chaque mise à jour majeure.
 
-```bash
-docker-compose down -v   # Supprime le volume
-docker-compose up -d     # Recrée la base vierge
-cd backend/DataShare.Api && dotnet ef database update  # Applique les migrations
-```
-
-> Fréquence recommandée : backup quotidien en production, hebdomadaire en staging.
+---
 
 ## 3. Mise à jour des dépendances
 
-### Backend (.NET / NuGet)
+### Procédure
 
-```bash
-cd backend/DataShare.Api
-
-# Lister les packages obsolètes
-dotnet list package --outdated
-
-# Mettre à jour un package spécifique
-dotnet add package <NomPackage>
-
-# Après mise à jour : lancer les tests
-dotnet test
-```
-
-> Fréquence : vérification mensuelle. Mises à jour de sécurité immédiatement.
-
-### Frontend (npm)
-
-```bash
-cd frontend/datashare-front
-
-# Audit de sécurité
-npm audit
-
-# Corriger automatiquement les vulnérabilités mineures
-npm audit fix
-
-# Lister les packages obsolètes
-npm outdated
-
-# Mettre à jour
-npm update
-```
-
-> Fréquence : `npm audit` à chaque sprint. `npm outdated` mensuel.
-
-### Base de données (PostgreSQL)
-
-```bash
-# Vérifier la version actuelle
-docker exec oc-p4-datashare-postgres psql -U datashare -c "SELECT version();"
-
-# Pour upgrader : backup, modifier la version dans docker-compose.yml, restore
-```
-
-> Fréquence : suivre les releases PostgreSQL, upgrader pour les correctifs de sécurité.
-
-### Risques liés aux mises à jour et parades
-
-| Type de mise à jour | Risque principal | Parade |
+| Étape | Backend (.NET) | Frontend (npm) |
 |---|---|---|
-| Patch (`9.0.1` → `9.0.2`) | Très faible — correctifs de bugs/sécurité | Lancer `dotnet test` / `npm run build` après mise à jour |
-| Mineure (`9.0` → `9.1`) | Faible — nouvelles API, dépréciations | Lire le changelog, tests complets (unitaires + e2e) |
-| Majeure (`.NET 9` → `10`, `Vite 7` → `8`) | Élevé — breaking changes (API supprimées, typages durcis) | Branche dédiée, lecture du guide de migration, tests complets, retour arrière possible via Git |
-| `npm audit fix --force` | Élevé — peut installer des versions majeures non testées | Ne jamais utiliser `--force` sans revue ; préférer des mises à jour ciblées |
-| Image Docker (PostgreSQL) | Migration de données entre versions majeures | Backup avant upgrade (`scripts/db-backup.ps1`), restore testé |
+| 1. Inventorier | `dotnet list package --outdated` | `npm outdated` |
+| 2. Auditer | `dotnet list package --vulnerable --include-transitive` | `npm audit` |
+| 3. Mettre à jour | `dotnet add package <Nom> --version <x.y.z>` | `npm update` (patch/mineur) ou `npm install <pkg>@<version>` |
+| 4. Vérifier | `dotnet build` puis `dotnet test` | `npm run build` (type-check) puis `npm run lint` ; Cypress sur la stack Docker |
+| 5. Tracer | Commit `chore(deps): ...` ou `fix(security): ...`, ligne dans [SECURITY.md](./SECURITY.md) § 4 si vulnérabilité | idem |
 
-> Cas concret rencontré (08/2026) : la mise à jour de sécurité d'`axios` a durci le typage des en-têtes HTTP et cassé la compilation TypeScript. Détection immédiate par le type-check du build, correction en une ligne. C'est exactement le rôle du filet de sécurité tests + typage.
+Les deux `package-lock.json` (`frontend/datashare-front` pour l'app, `frontend` pour Cypress) sont versionnés : toujours installer avec `npm ci` pour reproduire exactement l'arbre de dépendances.
 
-## 4. Procédure de correction de bugs
+### Fréquence
 
-1. Reproduire le bug (idéalement écrire un test qui échoue)
-2. Isoler : backend ? frontend ? base de données ?
-3. Corriger sur une branche dédiée (`fix/description-courte`)
-4. Vérifier : lancer `cd backend && dotnet test` + `cd frontend/datashare-front && npx cypress run`
-5. Merger après revue et tests verts
+| Quoi | Quand |
+|---|---|
+| Correctifs de sécurité (`npm audit`, `dotnet list package --vulnerable`) | **Immédiatement** dès publication d'un avis ; contrôle à chaque livraison |
+| Mises à jour patch / mineures | Mensuel |
+| Mises à jour majeures (.NET, Vite, Vue, PostgreSQL) | Planifiées, 1 à 2 fois par an, sur branche dédiée |
+| Image `postgres` | Suivre les versions mineures (16.x) ; changement de majeure = migration de données |
 
-### Logs utiles pour le diagnostic
+### Risques et parades
 
-```bash
-# Logs backend .NET (en mode développement)
-cd backend/DataShare.Api && dotnet run
-# Les logs s'affichent dans la console (Serilog/console logger)
+| Type de mise à jour | Risque | Parade |
+|---|---|---|
+| Patch (`9.0.1` → `9.0.2`) | Très faible | `dotnet test` / `npm run build` |
+| Mineure (`9.0` → `9.1`) | Faible : dépréciations, typages durcis | Lire le changelog, suite de tests complète |
+| Majeure (.NET 9 → 10, Vite 7 → 8, Vue 3 → 4) | Élevé : API supprimées, breaking changes | Branche dédiée, guide de migration officiel, tests complets, retour arrière par Git |
+| `npm audit fix --force` | Élevé : installe des majeures non testées | **Interdit** sans revue ; préférer des mises à jour ciblées |
+| Image PostgreSQL majeure (16 → 17) | Format de données incompatible | `pg_dump` avant, `pg_restore` après, jamais de changement de majeure sur un volume existant |
+| Cypress (binaire) | Téléchargement à l'installation, cache local | `CYPRESS_INSTALL_BINARY=0` pour un `npm ci` sans binaire (CI, audit) |
 
-# Logs PostgreSQL
-docker logs oc-p4-datashare-postgres --tail 100
+**Cas concrets rencontrés** : (08/2026) la mise à jour de sécurité d'`axios` a durci le typage des en-têtes et cassé le type-check — détecté par `npm run build`, corrigé en une ligne. (09/2026) `npm audit fix` a mis Cypress 15.10 → 15.21 sans impact sur les scénarios. C'est exactement le rôle du filet tests + typage.
 
-# Logs frontend (erreurs runtime)
-# Ouvrir la console navigateur (F12)
-```
+---
 
-## 5. Gestion des fichiers uploadés
+## 4. Diagnostic et correction de bugs
 
-Les fichiers sont stockés sur le système de fichiers du serveur backend (dossier configuré dans `appsettings.json`).
+### Où regarder
 
-### Nettoyage des fichiers expirés
+| Symptôme | Où | Commande |
+|---|---|---|
+| Erreur API (500, lenteur) | Logs structurés de l'API (une ligne par requête : route, statut, durée) | `docker compose logs -f api` — filtrer `"LogLevel":"Error"` |
+| API ne démarre pas | Message explicite au démarrage (ex. `Jwt:Key` manquante ou < 32 caractères, base injoignable) | `docker compose logs api` |
+| Base injoignable | Healthcheck PostgreSQL | `docker compose ps`, `docker logs oc-p4-datashare-postgres` |
+| Front : page blanche, appel API en échec | Console navigateur (F12) → onglets Console et Network | — |
+| Lien de partage « invalide ou expiré » | Fichier supprimé, expiré (`410`) ou token faux (`404`) | `docker compose logs api | grep <token>` |
 
-Les fichiers ont une durée de vie maximale de 7 jours (US10). Le nettoyage peut être :
+### Procédure
 
-- **Automatique** : via le service d'expiration intégré au backend
-- **Manuel** : vérifier et purger les fichiers orphelins
+1. **Reproduire** le bug, idéalement par un test qui échoue (`backend/DataShare.Api.Tests` ou `frontend/cypress/e2e`).
+2. **Isoler** la couche : front (console), API (logs structurés), base (logs PostgreSQL).
+3. **Corriger** sur une branche `fix/<description-courte>` avec un commit conventionnel (`fix(scope): ...`).
+4. **Vérifier** : `dotnet test`, `npm run build`, scénario Cypress concerné.
+5. **Fusionner** dans `develop` après revue, puis dans `main` pour livrer.
 
-```bash
-# Vérifier l'espace disque utilisé par les uploads
-du -sh backend/DataShare.Api/Storage/Uploads/
-```
+### Convention de branches et de commits
+
+- `main` : versions livrées ; `develop` : intégration ; `feat/...`, `fix/...`, `docs/...` : travail en cours.
+- Messages au format **Conventional Commits** (`feat`, `fix`, `docs`, `test`, `chore`, `perf`, `refactor`) avec scope (`api`, `front`, `docker`, `deploy`, `security`, `soutenance`). Les contributions du copilote IA sont isolées (`feat(ai): ...`) puis relues (`fix: ... (revue humaine)`), voir [AI_USAGE.md](./AI_USAGE.md).
+
+---
+
+## 5. Fichiers uploadés et purge
+
+- Durée de vie : 1 à 7 jours (choisie à l'upload, 7 par défaut).
+- Purge automatique : `ExpiredFilesCleanupService` (tâche de fond) supprime disque + métadonnées au démarrage de l'API puis toutes les 24 h ; les liens expirés répondent `410` en attendant.
+- Contrôle manuel de l'espace utilisé : `docker exec oc-p4-datashare-api du -sh /app/Storage/Uploads`.
+- Fichiers orphelins (présents sur disque sans ligne en base, ex. après une restauration partielle) : comparer `ls /app/Storage/Uploads` avec `SELECT "StoredFileName" FROM "Files"` et supprimer les écarts.
+
+---
 
 ## 6. Checklist de mise en production
 
-- [ ] Variables d'environnement configurées (JWT secret, connection string)
-- [ ] `ASPNETCORE_ENVIRONMENT=Production`
-- [ ] HTTPS activé
-- [ ] Backup base de données effectué
-- [ ] `dotnet test` — tous les tests passent
-- [ ] `npm audit` — aucune vulnérabilité critique
-- [ ] Fichiers statiques frontend buildés (`npm run build`)
+- [ ] `.env` renseigné : mot de passe PostgreSQL fort, `JWT_KEY` aléatoire ≥ 32 caractères, `CORS_ALLOWED_ORIGINS` = domaine du front
+- [ ] `ASPNETCORE_ENVIRONMENT=Production` (défaut de l'image ; désactive Swagger, active les logs JSON)
+- [ ] HTTPS terminé sur le reverse proxy (certificat), voir [SECURITY.md](./SECURITY.md) § 6
+- [ ] `dotnet test` vert, `npm run build` + `npm run lint` verts, scénarios Cypress passés sur la stack cible
+- [ ] `dotnet list package --vulnerable` et `npm audit` : 0 vulnérabilité (ou décision documentée)
+- [ ] Sauvegarde base + volume `datashare_uploads` réalisée et restauration testée
+- [ ] `GET /api/health` répond `{"status":"ok"}` derrière le proxy
