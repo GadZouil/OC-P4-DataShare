@@ -38,13 +38,13 @@ database "**PostgreSQL 16**\n(Docker)\n──────────\nAspNetUse
 
 rectangle "**Stockage Fichiers**\n──────────────\nDisque local\nStorage/Uploads/\n(noms GUID)" as FS
 
-FE -right-> API : <color:#FF6B35>HTTP / REST\nBearer JWT</color>
-API -right-> DB : <color:#4ECDC4>EF Core 9\nNpgsql</color>
-API -down-> FS : <color:#FFD166>IFileStorage\nSaveAsync · DeleteAsync\nOpenReadAsync</color>
+FE -right-> API : <color:#FF6B35>HTTP / REST</color>\n<color:#FF6B35>Bearer JWT</color>
+API -right-> DB : <color:#4ECDC4>EF Core 9</color>\n<color:#4ECDC4>Npgsql</color>
+API -down-> FS : <color:#FFD166>IFileStorage</color>\n<color:#FFD166>SaveAsync · DeleteAsync</color>\n<color:#FFD166>OpenReadAsync</color>
 
 note bottom of API
   Pipeline Middleware :
-  Routing → CORS → Authentication → Authorization → Controllers
+  RequestMetrics → Routing → CORS → Authentication → Authorization → Controllers
 end note
 
 note right of FS

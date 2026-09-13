@@ -45,11 +45,13 @@
   \textbf{DataShare} \\
   \Large Documentation Technique Compl\`ete \\
   \vspace{0.5cm}
-  \large Projet 4 --- OpenClassrooms \\
-  D\'eveloppeur Full Stack .NET / Angular
+  \large Projet 4 --- OpenClassrooms, parcours Architecte logiciel \\
+  \normalsize Mission « Pilotez le d\'eveloppement d'une solution informatique » \\
+  \vspace{0.3cm}
+  \normalsize D\'ep\^ot : \url{https://github.com/GadZouil/OC-P4-DataShare}
 }
-\author{Ethan}
-\date{\today}
+\author{Ethan Legros --- R\'ef\'erent technique senior, DataShare}
+\date{Septembre 2026}
 
 \begin{document}
 \maketitle
@@ -87,16 +89,17 @@ OC-P4-DataShare/
     DataShare.Api/
       Controllers/        # AuthController, FilesController, PublicFilesController
       Data/               # DataShareDbContext
+      Middleware/         # RequestMetricsMiddleware (logs structures par requete)
       Migrations/         # 4 migrations EF Core
       Models/             # AppUser, FileItem
       Services/           # IFileStorage, LocalFileStorage, ExpiredFilesCleanupService
       Program.cs          # Point d'entree, DI, middleware pipeline
-      appsettings.json    # Configuration (connexion DB, JWT)
+      appsettings.json    # Configuration (connexion DB, JWT, CORS, logs)
       DataShare.Api.csproj
     DataShare.Api.Tests/
       Helpers/            # CustomWebApplicationFactory, FakeFileStorage, TestAuthHandler
-      IntegrationTests/   # 10 fichiers de tests d'integration
-      UnitTests/          # ExpiredFilesCleanupServiceTests
+      IntegrationTests/   # 10 fichiers, 39 tests d'integration
+      UnitTests/          # ExpiredFilesCleanupServiceTests (2 tests)
     DataShare.sln
     Dockerfile            # Build .NET 9 multi-stage
   frontend/
@@ -104,11 +107,11 @@ OC-P4-DataShare/
       src/
         api/              # auth.ts, files.ts (clients HTTP)
         layouts/          # PublicLayout.vue
-        router/           # index.ts (5 routes)
-        services/         # api.ts (instance Axios + intercepteur JWT)
-        stores/           # auth.ts (Pinia), counter.ts
-        styles/           # datashare.css
-        views/            # 6 vues : Home, Login, Register, Upload, Me, Download
+        router/           # index.ts (5 routes + garde d'authentification)
+        services/         # api.ts (instance Axios : JWT, gestion du 401)
+        stores/           # auth.ts (Pinia)
+        styles/           # datashare.css (charte Figma)
+        views/            # 5 vues : Login, Register, Upload, Me, Download
         App.vue, main.ts
       vite.config.ts
       package.json
@@ -117,10 +120,13 @@ OC-P4-DataShare/
       support/            # commands.ts, e2e.ts
     Dockerfile            # Node 20 + Nginx
   docs/
-    diagrams/             # architecture.drawio, mcd.drawio
+    diagrams/             # architecture, MCD, flux (PlantUML + PNG, draw.io)
     API_REFERENCE.md      # Documentation API complete
-    openapi.yaml
-  docker-compose.yml      # 3 services : db, api, frontend
+    openapi.yaml          # Contrat d'interface OpenAPI 3
+    soutenance/           # Support de presentation, script oral, scenario de demo
+  perf/                   # Scripts k6 (upload, login)
+  scripts/                # deploy.ps1/.sh, db-backup.ps1, db-restore.ps1, verify.ps1
+  docker-compose.yml      # 3 services : db, api, frontend (secrets lus dans .env)
   .env.example
   README.md, SECURITY.md, TESTING.md, PERF.md, MAINTENANCE.md, AI_USAGE.md
 \end{lstlisting}
@@ -141,7 +147,7 @@ OC-P4-DataShare/
     \texttt{ExpiredFilesCleanupService} h\'erite de \texttt{BackgroundService} et s'ex\'ecute automatiquement au d\'emarrage puis toutes les 24 heures via un \texttt{PeriodicTimer}. Il purge les fichiers expir\'es (stockage disque + entr\'ees en base) en utilisant un scope de DI d\'edi\'e (\texttt{IServiceScopeFactory}).
 
   \item[Middleware Pipeline]
-    Le pipeline HTTP est configur\'e dans \texttt{Program.cs} avec l'ordre : \texttt{UseRouting} $\rightarrow$ \texttt{UseCors} $\rightarrow$ \texttt{UseAuthentication} $\rightarrow$ \texttt{UseAuthorization} $\rightarrow$ \texttt{MapControllers}.
+    Le pipeline HTTP est configur\'e dans \texttt{Program.cs} avec l'ordre : \texttt{UseRequestMetrics} (journalisation structur\'ee de chaque requ\^ete) $\rightarrow$ \texttt{UseRouting} $\rightarrow$ \texttt{UseCors} $\rightarrow$ \texttt{UseAuthentication} $\rightarrow$ \texttt{UseAuthorization} $\rightarrow$ \texttt{MapControllers}. Le middleware de m\'etriques est plac\'e en t\^ete pour mesurer le temps total, authentification comprise.
 \end{description}
 
 \begin{figure}[H]
@@ -314,7 +320,7 @@ builder.Entity<FileItem>(e =>
 \section{Documentation d'API}
 %% ====================================================================
 
-L'API REST est document\'ee automatiquement via Swagger (Swashbuckle) accessible en d\'eveloppement sur \texttt{http://localhost:5000/swagger}. Le token JWT est obtenu via \texttt{POST /api/auth/register} ou \texttt{POST /api/auth/login} et expire apr\`es \textbf{8 heures}.
+L'API REST est document\'ee automatiquement via Swagger (Swashbuckle) accessible en environnement de d\'eveloppement (\texttt{dotnet run}) sur \texttt{http://localhost:5180/swagger} ; le contrat de r\'ef\'erence est \texttt{docs/openapi.yaml} (OpenAPI 3, valid\'e), doubl\'e de \texttt{docs/API\_REFERENCE.md}. Le token JWT est obtenu via \texttt{POST /api/auth/register} ou \texttt{POST /api/auth/login} et expire apr\`es \textbf{8 heures}.
 
 \subsection{Auth --- \texttt{/api/auth}}
 
@@ -462,7 +468,8 @@ L'authentification utilise exclusivement des JSON Web Tokens (JWT), rendant le s
   \item \textbf{Dur\'ee de vie :} 8 heures (\texttt{DateTime.UtcNow.AddHours(8)})
   \item \textbf{Validation :} Issuer, Audience, Lifetime et IssuerSigningKey sont tous valid\'es
   \item \textbf{Claims :} \texttt{sub} (ID utilisateur) et \texttt{email}
-  \item \textbf{Cl\'e :} inject\'ee via variable d'environnement \texttt{Jwt:Key} (minimum 32 caract\`eres)
+  \item \textbf{Cl\'e :} lue dans la configuration (\texttt{Jwt:Key}, variable d'environnement \texttt{Jwt\_\_Key} ou user-secrets). L'API \textbf{refuse de d\'emarrer} si la cl\'e est absente ou fait moins de 32 caract\`eres : aucune cl\'e de repli n'est cod\'ee en dur.
+  \item \textbf{\'Echec de connexion :} r\'eponse \texttt{401} identique que l'email soit inconnu ou le mot de passe faux (pas d'\'enum\'eration de comptes).
 \end{itemize}
 
 Les contr\^oleurs prot\'eg\'es utilisent l'attribut \texttt{[Authorize]} au niveau de la classe (\texttt{FilesController}). L'identit\'e de l'utilisateur est extraite du claim \texttt{NameIdentifier} pour filtrer l'acc\`es aux fichiers.
@@ -495,7 +502,7 @@ Les contr\^oleurs prot\'eg\'es utilisent l'attribut \texttt{[Authorize]} au nive
 
 \begin{itemize}[nosep]
   \item \textbf{Sanitization des noms :} aucun fichier n'est stock\'e avec son nom d'origine. Il est remplac\'e par un GUID al\'eatoire (\texttt{Guid.NewGuid()}) pour emp\^echer les attaques de type Path Traversal.
-  \item \textbf{Isolation logique :} une validation stricte de \texttt{User.FindFirstValue(ClaimTypes.NameIdentifier)} assure qu'un utilisateur ne peut acc\'eder qu'aux fichiers dont il est propri\'etaire.
+  \item \textbf{Isolation logique :} l'identit\'e vient uniquement du token (\texttt{User.FindFirstValue(ClaimTypes.NameIdentifier)}) et chaque requ\^ete priv\'ee filtre sur \texttt{OwnerId == userId} ; un fichier d'un autre utilisateur r\'epond \texttt{404} (et non \texttt{403}) pour ne pas r\'ev\'eler son existence. Ces r\`egles sont v\'erifi\'ees par les tests d'int\'egration \texttt{SecurityTests} (lecture et suppression crois\'ees, \texttt{/files/me} isol\'e par utilisateur, endpoints priv\'es sans token, m\'etadonn\'ees publiques sans \texttt{ownerId} ni \texttt{token}).
   \item \textbf{Token de partage :} g\'en\'er\'e cryptographiquement via \texttt{RandomNumberGenerator.GetBytes(32)} encod\'e en Base64Url (256 bits d'entropie).
 \end{itemize}
 
@@ -505,7 +512,11 @@ L'utilisation stricte d'Entity Framework Core (ORM) param\`etre toutes les requ\
 
 \subsection{CORS}
 
-La politique CORS est configur\'ee dans \texttt{Program.cs} via une politique nomm\'ee \texttt{"dev"} utilisant \texttt{AllowAnyOrigin()}, \texttt{AllowAnyMethod()} et \texttt{AllowAnyHeader()} en d\'eveloppement. En production, cette configuration doit \^etre restreinte au domaine du frontend officiel.
+La politique CORS nomm\'ee \texttt{"frontend"} (\texttt{Program.cs}) n'accepte que les origines list\'ees dans \texttt{Cors:AllowedOrigins} (par d\'efaut \texttt{http://localhost:5173}, le serveur de d\'eveloppement Vite ; surchargeable par \texttt{CORS\_ALLOWED\_ORIGINS} dans \texttt{.env}). L'en-t\^ete \texttt{Content-Disposition} est expos\'e pour que le front lise le nom du fichier t\'el\'echarg\'e. En Docker, nginx sert le front et proxifie \texttt{/api} en m\^eme origine : CORS n'entre pas en jeu.
+
+\subsection{Transport et journalisation}
+
+Le prototype est servi en HTTP sur \texttt{localhost} ; HTTPS n'est pas activ\'e dans le code. En production, la terminaison TLS est pr\'evue sur le reverse proxy nginx (certificat Let's Encrypt), pratique standard pour une API conteneuris\'ee. Chaque requ\^ete produit une ligne de log structur\'ee (m\'ethode, route, statut, dur\'ee, volume) et les refus de mot de passe sur un fichier prot\'eg\'e sont trac\'es en \texttt{Warning} ; aucun mot de passe ni token complet n'est journalis\'e (voir section~\ref{sec:logs}).
 
 \subsection{Gestion des secrets}
 
@@ -517,10 +528,12 @@ La politique CORS est configur\'ee dans \texttt{Program.cs} via une politique no
 \subsection{Am\'eliorations futures}
 
 \begin{itemize}[nosep]
-  \item Rate Limiting sur les endpoints d'authentification (pr\'evention brute force).
-  \item Refresh Tokens pour r\'eduire la dur\'ee de vie des access tokens.
-  \item En-t\^etes Content Security Policy (CSP) c\^ot\'e frontend.
-  \item Scan antivirus des uploads (ClamAV via nClam).
+  \item HTTPS / HSTS : terminaison TLS sur nginx puis \texttt{UseHttpsRedirection()} et \texttt{UseHsts()} derri\`ere \texttt{ForwardedHeaders}.
+  \item Rate Limiting (\texttt{AddRateLimiter}, natif .NET) sur \texttt{/auth/login} et le t\'el\'echargement prot\'eg\'e (pr\'evention brute force).
+  \item Refresh Tokens pour r\'eduire la dur\'ee de vie des access tokens (8~h aujourd'hui).
+  \item Liste blanche d'extensions et v\'erification du type r\'eel (signature) en compl\'ement de la liste noire actuelle.
+  \item En-t\^etes de s\'ecurit\'e (CSP, \texttt{X-Content-Type-Options}) c\^ot\'e nginx.
+  \item Scan antivirus des uploads (ClamAV via nClam) et chiffrement au repos (impl\'ementation \texttt{IFileStorage} d\'edi\'ee).
 \end{itemize}
 
 %% ====================================================================
@@ -533,16 +546,16 @@ L'approche qualit\'e repose sur la \textbf{pyramide des tests}, privil\'egiant u
 
 \begin{description}[style=nextline]
   \item[Tests unitaires]
-    Validation de la logique m\'etier isol\'ee (services) via des mocks (Moq). Exemple : \texttt{ExpiredFilesCleanupServiceTests} valide la purge des fichiers expir\'es sans d\'ependance au syst\`eme de fichiers r\'eel gr\^ace \`a \texttt{FakeFileStorage}.
+    Validation de la logique m\'etier isol\'ee (services) via des mocks (Moq). Exemple : \texttt{ExpiredFilesCleanupServiceTests} valide la purge des fichiers expir\'es sans d\'ependance au syst\`eme de fichiers r\'eel gr\^ace \`a un mock Moq de \texttt{IFileStorage}.
 
   \item[Tests d'int\'egration]
-    Validation des endpoints API dans un environnement complet via \texttt{WebApplicationFactory} et une base de donn\'ees en m\'emoire (EF Core InMemory). Authentification simul\'ee par un \texttt{TestAuthHandler} personnalis\'e. 10 fichiers de tests couvrent : authentification, upload, listing, d\'etail, suppression, cas limites, s\'ecurit\'e et endpoints publics.
+    Validation des endpoints API dans un environnement complet via \texttt{WebApplicationFactory} et une base de donn\'ees en m\'emoire (EF Core InMemory) ; le stockage passe par le vrai \texttt{LocalFileStorage} dans un dossier ignor\'e par Git. Authentification simul\'ee par un \texttt{TestAuthHandler} personnalis\'e, qui accepte un en-t\^ete \texttt{X-Test-UserId} pour incarner un second utilisateur. 10 fichiers, \textbf{39 tests}, couvrent : authentification (dont email dupliqu\'e, mot de passe court, email inconnu), upload, listing (\texttt{/files} et \texttt{/files/me} avec filtre \texttt{status}), d\'etail, suppression, cas limites, isolation entre utilisateurs, lien expir\'e (\texttt{410}) et endpoints publics.
 
   \item[Tests E2E (Cypress)]
     5 sc\'enarios end-to-end ex\'ecut\'es dans un vrai navigateur, validant les flux utilisateur complets c\^ot\'e frontend.
 \end{description}
 
-\textbf{Stack technique de tests :} xUnit 2.9.2, FluentAssertions 6.12.1, Moq 4.20.72, Coverlet 6.0.4, Cypress 15.10.0.
+\textbf{Stack technique de tests :} xUnit 2.9.2, FluentAssertions 6.12.1, Moq 4.20.72, Coverlet 6.0.4, Cypress 15.21. Total : \textbf{41 tests} backend (2 unitaires + 39 d'int\'egration) et 5 sc\'enarios Cypress. Le script \texttt{scripts/verify.ps1} encha\^ine tests, couverture, build front et audits.
 
 \subsection{Plan de tests}
 
@@ -600,7 +613,7 @@ Couche Services & 75,5--100\% & -- \\
 \bottomrule
 \end{longtable}
 
-Le rapport HTML complet est g\'en\'er\'e dans \texttt{backend/DataShare.Api.Tests/coverage-report/index.html}.
+Mesure de r\'ef\'erence du 02/08/2026 (339 lignes couvertes sur 407, hors migrations). L'endpoint \texttt{GET /api/files/me}, alors non couvert, l'est depuis l'ajout de \texttt{SecurityTests} (13/09/2026). Le rapport HTML est g\'en\'er\'e dans \texttt{backend/TestResults/CoverageReport/index.html}.
 
 \textbf{Commandes :}
 \begin{lstlisting}
@@ -618,9 +631,12 @@ reportgenerator -reports:"**/coverage.cobertura.xml" \
 \textbf{Indicateur} & \textbf{Cible} \\
 \midrule
 \endhead
-Temps de r\'eponse API (p95) & < 200 ms \\
-Upload 10 Mo & < 3 s \\
-Time to Interactive (frontend) & < 2 s \\
+API --- P95 upload 100 Ko & < 500 ms \\
+API --- P95 connexion (PBKDF2) & < 500 ms \\
+API --- taux d'erreur sous charge & < 1\% \\
+Front --- bundle JS initial (gzip) & < 100 Ko \\
+Front --- Lighthouse Performance & $\geq$ 90 \\
+Front --- LCP / CLS / TBT & < 2,5 s / < 0,1 / < 200 ms \\
 \bottomrule
 \end{longtable}
 
@@ -641,6 +657,34 @@ Taux d'erreur & 0,00\% & < 1\% & Pass\'e \\
 Donn\'ees transf\'er\'ees & 52 Mo & -- & Info \\
 \bottomrule
 \end{longtable}
+
+\textbf{Analyse :} \`a 20 utilisateurs simultan\'es, l'upload complet (validation JWT, \'ecriture disque, insertion PostgreSQL) reste autour de 100~ms sans d\'egradation sur 30~s ; les I/O sont asynchrones (\texttt{CopyToAsync}, \texttt{SaveChangesAsync}), la limite r\'eelle est le disque et le r\'eseau, pas le code. Les scripts \texttt{perf/k6-upload-test.js} et \texttt{perf/k6-login-test.js} cr\'eent leur propre compte de test (\texttt{setup()}) et acceptent \texttt{BASE\_URL}, \texttt{VUS}, \texttt{DURATION}, \texttt{FILE\_KB} en variables d'environnement.
+
+\subsubsection{Logs structur\'es et m\'etriques cl\'es}
+\label{sec:logs}
+
+L'API journalise des \'ev\'enements structur\'es (placeholders nomm\'es captur\'es comme propri\'et\'es par \texttt{ILogger}) ; hors d\'eveloppement (conteneur Docker) la sortie est en \textbf{JSON, une ligne par \'ev\'enement} (\texttt{AddJsonConsole}), directement exploitable par un collecteur (Seq, Loki, ELK) ou par \texttt{grep}.
+
+\begin{longtable}{p{4.2cm} p{3.3cm} p{6.5cm}}
+\toprule
+\textbf{Source} & \textbf{\'Ev\'enement} & \textbf{Propri\'et\'es} \\
+\midrule
+\endhead
+\texttt{RequestMetricsMiddleware} & chaque requ\^ete HTTP & \texttt{Method}, \texttt{Path}, \texttt{StatusCode}, \texttt{ElapsedMs}, \texttt{RequestBytes}, \texttt{ResponseBytes} (niveau Warning si 4xx, Error si 5xx) \\
+\texttt{FilesController}, \texttt{PublicFilesController} & upload r\'eussi & \texttt{FileId}, \texttt{SizeBytes}, \texttt{ContentType}, \texttt{UserId}, \texttt{ExpiresAt}, \texttt{PasswordProtected}, \texttt{TagCount} \\
+\texttt{PublicFilesController} & t\'el\'echargement / mot de passe refus\'e & \texttt{FileId}, \texttt{SizeBytes}, \texttt{ContentType} \\
+\texttt{FilesController} & suppression & \texttt{FileId}, \texttt{SizeBytes}, \texttt{UserId} \\
+\texttt{ExpiredFilesCleanupService} & purge quotidienne & \texttt{Count}, erreurs de stockage \\
+\bottomrule
+\end{longtable}
+
+\begin{lstlisting}[title={Exploitation : P95 des uploads et volume transf\'er\'e depuis les logs Docker}]
+docker compose logs api | grep '"Path":"/api/files"' | grep '"Method":"POST"' \
+  | grep -o '"ElapsedMs":[0-9.]*' | cut -d: -f2 | sort -n \
+  | awk '{a[NR]=$1} END {print "n="NR, "p95="a[int(NR*0.95)]" ms"}'
+docker compose logs api | grep -o '"SizeBytes":[0-9]*' | cut -d: -f2 \
+  | awk '{s+=$1} END {print s" octets"}'
+\end{lstlisting}
 
 \subsubsection{Budget frontend (Lighthouse)}
 
@@ -683,10 +727,14 @@ SEO & 82 & $\geq$ 80 & Pass\'e \\
 \subsubsection{Gestion des services (Docker)}
 
 \begin{lstlisting}
-docker-compose up -d        # Lancer tous les services
-docker-compose logs -f api  # Consulter les logs API
-docker-compose down         # Arreter tous les services
+docker compose up -d --build   # Lancer (ou scripts/deploy.ps1 | deploy.sh)
+docker compose ps              # Etat et healthchecks (db, api)
+docker compose logs -f api     # Logs structures JSON de l'API
+docker compose down            # Arreter (donnees et fichiers conserves)
+docker compose down -v         # Reset complet (base + fichiers uploades)
 \end{lstlisting}
+
+Les fichiers upload\'es sont conserv\'es dans le volume \texttt{datashare\_uploads}, la base dans \texttt{datashare\_pg}. Les migrations EF Core sont appliqu\'ees automatiquement au d\'emarrage de l'API.
 
 \subsubsection{Sauvegarde et restauration de la base}
 
@@ -700,14 +748,15 @@ docker exec -i oc-p4-datashare-postgres \
   psql -U datashare datashare < backup_2026-01-15.sql
 \end{lstlisting}
 
-Fr\'equence recommand\'ee : sauvegarde quotidienne en production, hebdomadaire en staging.
+Scripts \'equivalents Windows : \texttt{scripts/db-backup.ps1} et \texttt{scripts/db-restore.ps1}. Base et volume de fichiers doivent \^etre sauvegard\'es ensemble (les m\'etadonn\'ees r\'ef\'erencent les noms stock\'es). Fr\'equence recommand\'ee : quotidienne en production, avant toute mise \`a jour majeure.
 
 \subsubsection{Mise \`a jour des d\'ependances}
 
 \begin{itemize}[nosep]
-  \item \textbf{Backend :} \texttt{dotnet list package --outdated} (mensuel), mises \`a jour de s\'ecurit\'e imm\'ediates, audit via \texttt{dotnet list package --vulnerable --include-transitive}.
-  \item \textbf{Frontend :} \texttt{npm audit} \`a chaque sprint, \texttt{npm outdated} mensuel.
-  \item \textbf{PostgreSQL :} suivre les releases pour les correctifs de s\'ecurit\'e.
+  \item \textbf{Backend :} \texttt{dotnet list package --outdated} (mensuel), audit \texttt{dotnet list package --vulnerable --include-transitive} \`a chaque livraison, correctifs de s\'ecurit\'e imm\'ediats, v\'erification par \texttt{dotnet test}.
+  \item \textbf{Frontend :} \texttt{npm audit} \`a chaque livraison, \texttt{npm outdated} mensuel, v\'erification par \texttt{npm run build} (type-check) et \texttt{npm run lint} ; jamais \texttt{npm audit fix --force} sans revue.
+  \item \textbf{Majeures} (.NET, Vite, Vue, PostgreSQL) : 1 \`a 2 fois par an, sur branche d\'edi\'ee, avec guide de migration et suite de tests compl\`ete ; changement de majeure PostgreSQL = \texttt{pg\_dump} / restauration, jamais sur un volume existant.
+  \item \textbf{Cas rencontr\'es :} (08/2026) mise \`a jour de s\'ecurit\'e d'\texttt{axios} d\'etect\'ee par le type-check et corrig\'ee en une ligne ; (09/2026) \texttt{npm audit fix} sur 13 avis transitifs (outils de build et Cypress) sans impact fonctionnel. D\'etail et d\'ecisions dans \texttt{SECURITY.md}.
 \end{itemize}
 
 \subsubsection{Proc\'edure de correction de bugs}
@@ -727,9 +776,9 @@ Les fichiers ont une dur\'ee de vie maximale de 7 jours. Le nettoyage est \textb
 \subsubsection{Checklist de mise en production}
 
 \begin{itemize}[nosep]
-  \item[$\square$] Variables d'environnement configur\'ees (JWT secret, connection string)
-  \item[$\square$] \texttt{ASPNETCORE\_ENVIRONMENT=Production}
-  \item[$\square$] HTTPS activ\'e
+  \item[$\square$] \texttt{.env} renseign\'e : mot de passe PostgreSQL fort, \texttt{JWT\_KEY} al\'eatoire $\geq$ 32 caract\`eres, \texttt{CORS\_ALLOWED\_ORIGINS}
+  \item[$\square$] \texttt{ASPNETCORE\_ENVIRONMENT=Production} (Swagger d\'esactiv\'e, logs JSON)
+  \item[$\square$] HTTPS termin\'e sur le reverse proxy
   \item[$\square$] Backup base de donn\'ees effectu\'e
   \item[$\square$] \texttt{dotnet test} --- tous les tests passent
   \item[$\square$] \texttt{npm audit} --- aucune vuln\'erabilit\'e critique
@@ -757,7 +806,7 @@ Docker \& Compose & -- & Optionnel, recommand\'e pour l'installation simplifi\'e
 \subsection{Installation manuelle}
 
 \begin{lstlisting}[title={1. Cloner le projet}]
-git clone https://github.com/<user>/OC-P4-DataShare.git
+git clone https://github.com/GadZouil/OC-P4-DataShare.git
 cd OC-P4-DataShare
 \end{lstlisting}
 
@@ -767,10 +816,11 @@ docker-compose up -d db
 
 \begin{lstlisting}[title={3. Backend}]
 cd backend/DataShare.Api
-dotnet ef database update
+dotnet user-secrets set "ConnectionStrings:Default" \
+  "Host=127.0.0.1;Port=5433;Database=datashare;Username=datashare;Password=datashare"
 dotnet run
-# API disponible sur http://localhost:5000
-# Swagger UI sur http://localhost:5000/swagger
+# API disponible sur http://localhost:5180 (migrations appliquees au demarrage)
+# Swagger UI sur http://localhost:5180/swagger
 \end{lstlisting}
 
 \begin{lstlisting}[title={4. Frontend}]
@@ -783,7 +833,8 @@ npm run dev
 \subsection{Installation Docker (tout-en-un)}
 
 \begin{lstlisting}
-docker-compose up -d
+cp .env.example .env           # optionnel : secrets (valeurs de demo par defaut)
+docker compose up -d --build   # ou : ./scripts/deploy.sh | .\scripts\deploy.ps1
 \end{lstlisting}
 
 Cette commande lance les trois services :
@@ -808,8 +859,11 @@ Le fichier \texttt{.env.example} fournit le template des variables \`a configure
 \textbf{Variable} & \textbf{Exemple} & \textbf{Description} \\
 \midrule
 \endhead
-\texttt{POSTGRES\_PASSWORD} & (secret) & Mot de passe PostgreSQL \\
-\texttt{Jwt\_\_Key} & (32+ chars) & Cl\'e de signature JWT \\
+\texttt{POSTGRES\_DB / \_USER / \_PASSWORD} & datashare / datashare / (secret) & Base, utilisateur et mot de passe PostgreSQL \\
+\texttt{JWT\_KEY} & (32+ caract\`eres) & Cl\'e de signature JWT (l'API refuse de d\'emarrer sinon) \\
+\texttt{JWT\_ISSUER / JWT\_AUDIENCE} & DataShareApi / DataShareClient & \'Emetteur et audience des tokens \\
+\texttt{CORS\_ALLOWED\_ORIGINS} & http://localhost:5173 & Origine autoris\'ee (front hors nginx) \\
+\texttt{VITE\_API\_URL} & /api & URL de l'API pour le build du front \\
 \bottomrule
 \end{longtable}
 
@@ -827,15 +881,16 @@ Le fichier \texttt{.env.example} fournit le template des variables \`a configure
 \bottomrule
 \end{longtable}
 
-En Docker Compose, ces variables sont surcharg\'ees via la section \texttt{environment} de chaque service :
+\texttt{docker-compose.yml} lit ces variables dans \texttt{.env} et les injecte dans la section \texttt{environment} du service \texttt{api} (\texttt{Section\_\_Cle} est lu par ASP.NET Core comme \texttt{Section:Cle}) :
 
 \begin{lstlisting}
 api:
   environment:
-    ConnectionStrings__Default: "Host=db;Port=5432;..."
-    Jwt__Key: "change-me-in-production-secret-key-32chars"
-    Jwt__Issuer: "DataShareApi"
-    Jwt__Audience: "DataShareClient"
+    ConnectionStrings__Default: "Host=db;Port=5432;Database=${POSTGRES_DB:-datashare};..."
+    Jwt__Key: ${JWT_KEY:-change-me-in-production-secret-key-32chars}
+    Jwt__Issuer: ${JWT_ISSUER:-DataShareApi}
+    Jwt__Audience: ${JWT_AUDIENCE:-DataShareClient}
+    Cors__AllowedOrigins__0: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
 \end{lstlisting}
 
 %% ====================================================================
@@ -871,10 +926,10 @@ Le backend supportait d\'ej\`a les tags (\texttt{string[]} \`a l'upload, renvoy\
   \item \texttt{src/views/UploadView.vue} --- Champ de saisie de tags avec chips
   \item \texttt{src/views/MeView.vue} --- Affichage et filtrage par tags
   \item \texttt{src/styles/datashare.css} --- Styles des chips et du filtre
-  \item \texttt{src/api/files.ts} --- Envoi des tags dans les requ\^etes d'upload
+  \item (\texttt{src/api/files.ts} \'etait autoris\'e « si n\'ecessaire » : l'envoi des tags en \texttt{FormData} existait d\'ej\`a, aucune modification)
 \end{itemize}
 
-Le prompt complet est disponible dans le fichier \texttt{IA\_Instructions.txt} \`a la racine du projet.
+Le prompt complet est disponible dans le fichier \texttt{IA\_Instructions.txt} \`a la racine du projet. Tra\c{c}abilit\'e Git : commit \texttt{56f411d feat(ai): add tags UI and filtering} (code produit par l'IA) puis \texttt{a8c23fc fix(tags): show clear UI errors...} (revue humaine).
 
 \subsection{Supervision et corrections humaines}
 
@@ -898,6 +953,8 @@ Validation insuffisante c\^ot\'e UI & Renforcement des contr\^oles (trim, longue
   \item Correction et commit s\'epar\'e pour tra\c{c}abilit\'e.
 \end{enumerate}
 
+\textbf{Points de vigilance v\'erifi\'es :} le back reste l'autorit\'e (normalisation et d\'eduplication des tags aussi c\^ot\'e API, 20 tags max) ; aucune nouvelle d\'ependance ; styles ajout\'es dans \texttt{datashare.css} avec le pr\'efixe \texttt{ds-} existant ; logique isol\'ee dans \texttt{addTag} / \texttt{removeTag} ; conformit\'e \`a la charte Figma.
+
 \subsection{Autres usages de l'IA}
 
 \begin{longtable}{p{4cm} p{10cm}}
@@ -910,6 +967,7 @@ Debugging & R\'esolution d'erreurs CORS, JWT, configuration Docker \\
 Architecture & Conseils sur l'organisation Services/Models/Controllers \\
 Recherche technique & Bonnes pratiques .NET, Vue 3, PostgreSQL --- remplace efficacement Google/Stack Overflow \\
 Documentation & Assistance r\'edaction des fichiers \texttt{.md} techniques \\
+Revue finale avant soutenance (09/2026) & Audit de coh\'erence code $\leftrightarrow$ documentation (OpenAPI p\'erim\'e, \texttt{SECURITY.md} d\'ecrivant des m\'ecanismes absents du code), propositions de tests de s\'ecurit\'e et de logs structur\'es, relecture du support ; chaque proposition relue, ex\'ecut\'ee (\texttt{dotnet test}, \texttt{npm run build}) et valid\'ee avant commit \\
 \bottomrule
 \end{longtable}
 

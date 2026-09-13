@@ -32,6 +32,9 @@ title <color:#FF6B35><b>DataShare — Pipeline Middleware ASP.NET Core</b></colo
 
 start
 
+:➤ <b>UseRequestMetrics</b>
+<i>Chrono démarré : log structuré (méthode, route, statut, durée, octets) en fin de requête</i>;
+
 :➤ <b>UseRouting</b>
 <i>Correspondance de la route avec un contrôleur</i>;
 
@@ -41,11 +44,11 @@ note right
 end note
 
 :➤ <b>UseCors</b>
-<i>Politique "dev" : AllowAnyOrigin / Method / Header</i>;
+<i>Politique "frontend" : origines de Cors:AllowedOrigins</i>;
 
 note right
-  ⚠ En production : restreindre
-  au domaine frontend officiel
+  Défaut : http://localhost:5173 (Vite)
+  En Docker : même origine via nginx
 end note
 
 :➤ <b>UseAuthentication</b>
