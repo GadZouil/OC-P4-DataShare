@@ -1,0 +1,9 @@
+# Artefacts de build et fichiers locaux exclus du contexte Docker
+**/bin/
+**/obj/
+**/TestResults/
+**/.vs/
+**/Storage/
+*.user
+DataShare.Api.Tests/
+load-test.js
