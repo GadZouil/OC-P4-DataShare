@@ -643,23 +643,25 @@ Front --- LCP / CLS / TBT & < 2,5 s / < 0,1 / < 200 ms \\
 
 \subsubsection{R\'esultats du test de charge k6}
 
-Test r\'ealis\'e le 17 f\'evrier 2026 avec 20 utilisateurs virtuels pendant 30 secondes :
+Tests r\'ealis\'es avec 20 utilisateurs virtuels pendant 30 secondes, API et PostgreSQL en Docker (r\'ef\'erence du 17 f\'evrier 2026, puis run du 13 septembre 2026 sur la machine de d\'emonstration avec k6 2.2.0) :
 
-\begin{longtable}{p{4cm} p{3cm} p{2.5cm} p{2.5cm}}
+\begin{longtable}{p{3.6cm} p{2.6cm} p{2.6cm} p{2.2cm} p{1.8cm}}
 \toprule
-\textbf{M\'etrique} & \textbf{R\'esultat} & \textbf{Objectif} & \textbf{Statut} \\
+\textbf{M\'etrique (upload 100 Ko)} & \textbf{17/02/2026} & \textbf{13/09/2026} & \textbf{Objectif} & \textbf{Statut} \\
 \midrule
 \endhead
-It\'erations totales & 500 uploads & > 100 & Pass\'e \\
-Requ\^etes/seconde & $\sim$32/s & > 10/s & Pass\'e \\
-Temps moyen & 107,9 ms & < 500 ms & Pass\'e \\
-P95 & 125,19 ms & < 2000 ms & Pass\'e \\
-Taux d'erreur & 0,00\% & < 1\% & Pass\'e \\
-Donn\'ees transf\'er\'ees & 52 Mo & -- & Info \\
+It\'erations totales & 500 uploads & 600 uploads & > 100 & Pass\'e \\
+Requ\^etes/seconde & $\sim$32/s & $\sim$20/s (limit\'e par le \texttt{sleep(1)} du script) & > 10/s & Pass\'e \\
+Temps moyen & 107,9 ms & 9,3 ms & < 500 ms & Pass\'e \\
+P95 & 125,19 ms & 17,5 ms & < 2000 ms & Pass\'e \\
+Taux d'erreur & 0,00\% & 0,00\% & < 1\% & Pass\'e \\
+Donn\'ees transf\'er\'ees & 52 Mo & 62 Mo & -- & Info \\
 \bottomrule
 \end{longtable}
 
-\textbf{Analyse :} \`a 20 utilisateurs simultan\'es, l'upload complet (validation JWT, \'ecriture disque, insertion PostgreSQL) reste autour de 100~ms sans d\'egradation sur 30~s ; les I/O sont asynchrones (\texttt{CopyToAsync}, \texttt{SaveChangesAsync}), la limite r\'eelle est le disque et le r\'eseau, pas le code. Les scripts \texttt{perf/k6-upload-test.js} et \texttt{perf/k6-login-test.js} cr\'eent leur propre compte de test (\texttt{setup()}) et acceptent \texttt{BASE\_URL}, \texttt{VUS}, \texttt{DURATION}, \texttt{FILE\_KB} en variables d'environnement.
+Connexion (\texttt{perf/k6-login-test.js}, 13/09/2026) : 580 connexions, temps moyen 59,1 ms, \textbf{P95 78,9 ms} (objectif < 500 ms), 0,00\,\% d'erreur --- le hachage PBKDF2 explique le co\^ut sup\'erieur \`a celui d'un upload.
+
+\textbf{Analyse :} \`a 20 utilisateurs simultan\'es, l'upload complet (validation JWT, \'ecriture disque, insertion PostgreSQL) reste sous 40~ms au maximum et autour de 10~ms en moyenne sans d\'egradation sur 30~s ; les I/O sont asynchrones (\texttt{CopyToAsync}, \texttt{SaveChangesAsync}), la limite r\'eelle est le disque et le r\'eseau, pas le code. Les scripts \texttt{perf/k6-upload-test.js} et \texttt{perf/k6-login-test.js} cr\'eent leur propre compte de test (\texttt{setup()}) et acceptent \texttt{BASE\_URL}, \texttt{VUS}, \texttt{DURATION}, \texttt{FILE\_KB} en variables d'environnement.
 
 \subsubsection{Logs structur\'es et m\'etriques cl\'es}
 \label{sec:logs}

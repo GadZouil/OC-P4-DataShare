@@ -51,7 +51,14 @@ Seuils k6 (le run échoue s'ils sont dépassés) : `http_req_duration p(95) < 20
 
 **Analyse** : à 20 utilisateurs simultanés, l'upload complet (authentification JWT, validation, écriture disque, insertion PostgreSQL) reste autour de 100 ms sans dégradation sur 30 s. Les I/O sont entièrement asynchrones (`CopyToAsync`, `SaveChangesAsync`) : le serveur n'immobilise pas de thread pendant l'écriture. La limite réelle est le disque et la bande passante, pas le code applicatif.
 
-> Le script ayant été rendu autonome le 13/09/2026 (création du compte dans `setup()`, `BASE_URL` paramétrable), la logique de mesure est inchangée ; relancer `k6 run perf/k6-upload-test.js` avant la soutenance pour disposer de chiffres frais sur la machine de démo.
+### Résultats — run du 13/09/2026 (k6 2.2.0, script autonome, API + PostgreSQL en Docker, machine de démo)
+
+| Script | Itérations | Débit | Moyenne | Médiane | **P95** | Max | Taux d'erreur | Checks |
+|---|---|---|---|---|---|---|---|---|
+| `k6-upload-test.js` (20 VU × 30 s, 100 Ko) | 600 uploads (62 Mo envoyés) | ~20 req/s | 9,3 ms | 8,0 ms | **17,5 ms** | 38,3 ms | 0,00 % | 1 200 / 1 200 ✅ |
+| `k6-login-test.js` (20 VU × 30 s) | 580 connexions | ~19 req/s | 59,1 ms | 60,8 ms | **78,9 ms** | 133,6 ms | 0,00 % | 1 740 / 1 740 ✅ |
+
+Tous les seuils sont respectés (`p(95) < 2000 ms` upload, `p(95) < 500 ms` login, échecs < 1 %). Le débit d'environ 20 req/s est imposé par le `sleep(1)` de chaque itération (20 VU → 20 requêtes/s), pas par le serveur. L'écart avec février (P95 125 ms → 17,5 ms) tient au poste de mesure et au warm-up : la conclusion est inchangée, l'upload de 100 Ko coûte quelques dizaines de millisecondes sous 20 utilisateurs. La connexion est plus lente (P95 79 ms) parce que le hachage PBKDF2 est volontairement coûteux — c'est le comportement attendu.
 
 ---
 
@@ -100,8 +107,8 @@ En production, ces lignes JSON se branchent sans transformation sur un collecteu
 
 | Endpoint | Source | Moyenne | P95 |
 |---|---|---|---|
-| `POST /api/files` (100 Ko) | k6, 20 VU (17/02/2026) | ~108 ms | ~125 ms |
-| `POST /api/auth/login` | `perf/k6-login-test.js` | à mesurer sur la machine de démo (`k6 run perf/k6-login-test.js`) | — |
+| `POST /api/files` (100 Ko) | k6, 20 VU (17/02/2026 → 13/09/2026) | ~108 ms → 9,3 ms | ~125 ms → 17,5 ms |
+| `POST /api/auth/login` | k6, 20 VU (13/09/2026) | 59,1 ms (PBKDF2) | 78,9 ms |
 | `GET /api/files/me` | logs `RequestMetricsMiddleware` | requête indexée (`OwnerId`), quelques ms sur une base de démo | — |
 | `POST /api/public/files/{token}/download` | logs `RequestMetricsMiddleware` | dominé par la taille du fichier (streaming) | — |
 
