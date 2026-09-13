@@ -169,7 +169,7 @@ Ce qui n'est pas dans le MVP est assumé et documenté : HTTPS sur le reverse pr
 
 Quarante-et-un tests backend : deux unitaires sur la purge, trente-neuf d'intégration HTTP sur tous les endpoints, avec une base en mémoire et un schéma d'authentification de test.
 
-Couverture : 83 % du code métier, migrations exclues — le seuil demandé était 70.
+Couverture : 91 % du code métier, migrations exclues — le seuil demandé était 70.
 
 Cinq scénarios Cypress end-to-end contre la vraie stack Docker : cycle de vie d'un fichier, tags, mot de passe, limites, parcours complet.
 
@@ -185,9 +185,9 @@ Le plan de tests liste chaque user story avec son critère d'acceptation — par
 
 k6, vingt utilisateurs pendant trente secondes : cinq cents uploads, P95 à 125 millisecondes, zéro erreur.
 
-Front : 57 kilo-octets de JavaScript gzip au chargement, Lighthouse 96 en performance.
+Front : 57 kilo-octets de JavaScript gzip au chargement, Lighthouse 99 en performance.
 
-L'accessibilité est à 76 : les contrastes viennent de la charte Figma. Je l'ai remonté à l'UX designer plutôt que de modifier la charte seul ; les corrections hors charte sont faites.
+L'accessibilité est passée de 76 à 88 avec les corrections hors charte — langue, titre, meta. Le reste tient aux contrastes de la charte Figma : je l'ai remonté à l'UX designer plutôt que de modifier la charte seul.
 
 Et l'observabilité : chaque requête produit une ligne JSON avec méthode, route, statut, durée, volume ; chaque upload, téléchargement ou suppression est tracé avec l'identifiant et la taille. Exploitable par grep aujourd'hui, par un collecteur demain.
 
@@ -262,7 +262,7 @@ Merci Lisa. Je suis prêt pour vos questions.
 | Situation | Action |
 |---|---|
 | 7:00 atteint avant la démo | Slide 8 : ne lire que les trois premières cartes |
-| 12:30 en sortie de démo | Fusionner slides 10 et 11 : citer 41 tests, 83 %, P95 125 ms, logs — 45 s |
+| 12:30 en sortie de démo | Fusionner slides 10 et 11 : citer 41 tests, 91 %, P95 125 ms, logs — 45 s |
 | 15:00 avant la slide 14 | Ne donner que deux difficultés (upload anonyme, vulnérabilités) |
 | Terminé à 12:00 | Développer : IFileStorage → S3 (30 s), tests d'isolation (30 s), lecture d'une ligne de log (30 s) |
 | Démo cassée | Captures `screenshots/` et raconter le parcours ; montrer `docker compose logs api` si l'API tourne |
@@ -312,7 +312,7 @@ L'évaluateur reste **Lisa**. Réponses courtes, ancrées dans le code et les do
 ### Qualité et maintien en conditions opérationnelles
 
 **« 70 % de couverture : vous êtes à combien ? »**
-« 83 % en lignes sur le code métier, migrations EF exclues via Coverlet — elles sont générées. Brut, on serait autour de 18 % à cause des deux mille lignes de migrations, ce qui ne mesure rien. »
+« 91 % en lignes et 73 % en branches sur le code métier, migrations EF exclues via Coverlet — elles sont générées. Brut, on serait autour de 18 % à cause des deux mille lignes de migrations, ce qui ne mesure rien. »
 
 **« Vos tests end-to-end couvrent quoi ? »**
 « Cinq scénarios Cypress contre la stack Docker : cycle de vie, tags, mot de passe, limites, parcours complet inscription → upload → partage → suppression. »
@@ -348,8 +348,8 @@ L'évaluateur reste **Lisa**. Réponses courtes, ancrées dans le code et les do
 **« CORS ? »**
 « Politique restreinte aux origines configurées — par défaut le serveur de dev Vite. En Docker, nginx sert le front et proxifie l'API en même origine, CORS n'intervient pas. »
 
-**« Accessibilité 76 ? »**
-« Mesuré, documenté : contrastes issus de la charte. Corrigé ce qui ne touche pas la charte (langue, titre, meta), remonté le reste à l'UX. »
+**« Accessibilité 88 ? »**
+« Mesuré, documenté : 76 en mars, 88 en septembre après les corrections qui ne touchent pas la charte (langue, titre, meta). Le reste — contrastes de la charte, nom accessible du bouton d'upload — est remonté à l'UX. »
 
 **« Une vulnérabilité dans vos dépendances ? »**
 « Oui, traitée deux fois : CVE Microsoft.OpenApi en août — risque faible, patch mineur, tests verts — et des avis npm sur des dépendances transitives d'outils, corrigés par `npm audit fix`. Zéro vulnérabilité connue aujourd'hui, décisions dans SECURITY.md. »
